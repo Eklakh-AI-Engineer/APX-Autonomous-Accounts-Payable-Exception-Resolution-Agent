@@ -27,6 +27,15 @@ jobs:
           cache: pip
       - name: Install project and development dependencies
         run: python -m pip install -e ".[dev]"
+      - name: Run focused observability and security regressions
+        run: |
+          python -m pytest \
+            apx/tests/test_api.py \
+            apx/tests/test_tracing.py \
+            apx/tests/test_persistence.py \
+            apx/tests/test_phase4_guardrail.py \
+            apx/tests/test_phase4_action.py \
+            apx/tests/test_security_redaction.py -q
       - name: Run complete test suite
         run: |
           mkdir -p artifacts
@@ -39,30 +48,6 @@ jobs:
           path: artifacts/junit.xml
           if-no-files-found: ignore
           retention-days: 14
-
-  observability-security:
-    name: Observability and security regression tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-      - name: Install project and development dependencies
-        run: python -m pip install -e ".[dev]"
-      - name: Verify API security, tracing, persistence, action guardrails, and redaction
-        run: |
-          python -m pytest \
-            apx/tests/test_api.py \
-            apx/tests/test_tracing.py \
-            apx/tests/test_persistence.py \
-            apx/tests/test_phase4_guardrail.py \
-            apx/tests/test_phase4_action.py \
-            apx/tests/test_security_redaction.py -q
 
   benchmark:
     name: Deterministic development benchmark
