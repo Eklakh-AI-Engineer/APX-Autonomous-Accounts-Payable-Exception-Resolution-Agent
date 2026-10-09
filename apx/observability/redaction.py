@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Set
 
 SENSITIVE_KEYS: Set[str] = {
     "api_key",
