@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Set
 
 SENSITIVE_KEYS: Set[str] = {
     "api_key",
@@ -99,10 +99,10 @@ def redact_dict(data: Dict[str, Any], max_visible: int = 4) -> Dict[str, Any]:
             result[key] = redact_value(value, max_visible)
         elif isinstance(value, dict):
             result[key] = redact_dict(value, max_visible)
-        elif isinstance(value, list):
-            result[key] = [redact_dict(item, max_visible) if isinstance(item, dict) else item for item in value]
         else:
-            result[key] = value
+            # Recurse through every value type so nested lists and strings cannot bypass
+            # the same redaction rules applied to top-level payloads.
+            result[key] = deep_redact(value, max_visible)
     return result
 
 
