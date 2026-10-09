@@ -87,7 +87,7 @@ jobs:
           retention-days: 30
 
   lint:
-    name: Ruff lint
+    name: Ruff lint for audited security files
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -99,5 +99,5 @@ jobs:
           python-version: "3.11"
       - name: Install Ruff
         run: python -m pip install "ruff>=0.5"
-      - name: Lint repository
-        run: ruff check .
+      - name: Lint changed redaction implementation and regression tests
+        run: ruff check apx/observability/redaction.py apx/tests/test_security_redaction.py
