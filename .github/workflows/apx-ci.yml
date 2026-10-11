@@ -27,6 +27,22 @@ jobs:
           cache: pip
       - name: Install project and development dependencies
         run: python -m pip install -e ".[dev]"
+      - name: Cache Hugging Face model artifacts
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface/hub
+          key: apx-hf-models-${{ runner.os }}-bge-small-en-v1.5-bge-reranker-base-v1
+      - name: Provision DEV retrieval models for offline-only runtime
+        run: |
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+
+          for model_id in (
+              "BAAI/bge-small-en-v1.5",
+              "BAAI/bge-reranker-base",
+          ):
+              snapshot_download(repo_id=model_id)
+          PY
       - name: Run focused observability and security regressions
         run: |
           python -m pytest \
