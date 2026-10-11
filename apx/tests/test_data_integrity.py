@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 from collections import Counter
 import pytest
@@ -223,10 +224,9 @@ class TestDataIntegrity:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             env = os.environ.copy()
-            env["PATH"] = "/home/eklakhdewan/.local/bin:" + env["PATH"]
 
             result1 = subprocess.run(
-                ["python3", "-m", "apx.data.generate_synthetic", "--seed", "42"],
+                [sys.executable, "-m", "apx.data.generate_synthetic", "--seed", "42"],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
@@ -238,8 +238,8 @@ class TestDataIntegrity:
                 invs1 = json.load(f)
 
             result2 = subprocess.run(
-                ["python3", "-m", "apx.data.generate_synthetic", "--seed", "42"],
-                cwd="/mnt/d/Opencode",
+                [sys.executable, "-m", "apx.data.generate_synthetic", "--seed", "42"],
+                cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
                 env=env
