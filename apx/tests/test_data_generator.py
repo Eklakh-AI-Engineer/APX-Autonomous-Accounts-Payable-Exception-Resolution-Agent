@@ -74,7 +74,7 @@ class TestDataGenerator:
         for invoice in gen.invoices:
             vendor = vendor_by_id[invoice.vendor_id]
             gt = gt_by_invoice[invoice.invoice_id]
-            if vendor.credit_status.value != "ACTIVE":
+            if vendor.credit_status != CreditStatus.ACTIVE:
                 assert ExceptionCode.CREDIT_ISSUE in gt.expected_exceptions
                 assert gt.expected_decision == "REVIEW"
 
