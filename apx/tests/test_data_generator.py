@@ -1,5 +1,6 @@
 from decimal import Decimal
 from apx.data.generate_synthetic import SyntheticGenerator
+from apx.data.schemas import CreditStatus, ExceptionCode
 
 
 class TestDataGenerator:
@@ -27,6 +28,19 @@ class TestDataGenerator:
         assert len(grns) >= 5
         assert all(g.grn_id.startswith("GRN-") for g in grns)
         assert all(g.po_id in [p.po_id for p in gen.purchase_orders] for g in grns)
+
+    def test_baseline_receipts_match_po_quantities(self):
+        gen = SyntheticGenerator(seed=42)
+        gen.generate_vendors(10)
+        pos = gen.generate_purchase_orders(30)
+        grns = gen.generate_goods_receipts(30)
+
+        po_by_id = {po.po_id: po for po in pos}
+        for grn in grns:
+            po = po_by_id[grn.po_id]
+            po_quantities = {line.line_id: line.quantity for line in po.line_items}
+            for receipt_line in grn.line_items:
+                assert receipt_line.quantity_received == po_quantities[receipt_line.po_line_id]
 
     def test_generate_invoices(self):
         gen = SyntheticGenerator(seed=42)
@@ -59,6 +73,23 @@ class TestDataGenerator:
             assert i1["invoice_id"] == i2["invoice_id"]
             assert i1["vendor_id"] == i2["vendor_id"]
             assert i1["total"] == i2["total"]
+
+    def test_vendor_credit_state_is_reflected_in_ground_truth(self):
+        gen = SyntheticGenerator(seed=42)
+        gen.generate_vendors(10)
+        gen.generate_purchase_orders(30)
+        gen.generate_goods_receipts(30)
+        gen.generate_invoices(100)
+
+        vendor_by_id = {vendor.vendor_id: vendor for vendor in gen.vendors}
+        gt_by_invoice = {gt.invoice_id: gt for gt in gen.ground_truth}
+
+        for invoice in gen.invoices:
+            vendor = vendor_by_id[invoice.vendor_id]
+            gt = gt_by_invoice[invoice.invoice_id]
+            if vendor.credit_status != CreditStatus.ACTIVE:
+                assert ExceptionCode.CREDIT_ISSUE in gt.expected_exceptions
+                assert gt.expected_decision == "REVIEW"
 
     def test_different_seeds_produce_different_data(self):
         gen1 = SyntheticGenerator(seed=111)

@@ -2,6 +2,9 @@ import json
 import pytest
 from datetime import date
 from pathlib import Path
+import sys
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 from apx.config.settings import get_settings
 from apx.evidence.populate_eval_labels import (
@@ -80,19 +83,19 @@ class TestEvalDataset:
         import tempfile
         
         env = os.environ.copy()
-        env["PATH"] = "/home/eklakhdewan/.local/bin:" + env["PATH"]
+        env["PATH"] = str(Path(sys.executable).parent) + os.pathsep + env["PATH"]
         # Set PYTHONHASHSEED for deterministic hash() across processes
         env["PYTHONHASHSEED"] = "42"
         
         with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
             # Run populate script twice
             subprocess.run(
-                ["python3", "-m", "apx.evidence.populate_eval_labels", "--output-dir", tmpdir1],
-                cwd="/mnt/d/Opencode", capture_output=True, env=env, check=True
+                [sys.executable, "-m", "apx.evidence.populate_eval_labels", "--output-dir", tmpdir1],
+                cwd=REPO_ROOT, capture_output=True, env=env, check=True
             )
             subprocess.run(
-                ["python3", "-m", "apx.evidence.populate_eval_labels", "--output-dir", tmpdir2],
-                cwd="/mnt/d/Opencode", capture_output=True, env=env, check=True
+                [sys.executable, "-m", "apx.evidence.populate_eval_labels", "--output-dir", tmpdir2],
+                cwd=REPO_ROOT, capture_output=True, env=env, check=True
             )
             
             # Compare outputs
