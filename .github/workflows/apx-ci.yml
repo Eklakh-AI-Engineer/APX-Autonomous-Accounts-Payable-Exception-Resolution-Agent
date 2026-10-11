@@ -43,6 +43,8 @@ jobs:
           ):
               snapshot_download(repo_id=model_id)
           PY
+      - name: Generate deterministic bootstrap dataset
+        run: python -m apx.data.generate_synthetic --seed 42
       - name: Run focused observability and security regressions
         run: |
           python -m pytest \
