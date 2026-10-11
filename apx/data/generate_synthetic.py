@@ -81,7 +81,6 @@ class SyntheticGenerator:
 
     def generate_vendors(self, count: int) -> list[Vendor]:
         currencies = list(Currency)
-        credit_statuses = list(CreditStatus)
         statuses = list(VendorStatus)
 
         for i in range(count):
@@ -91,7 +90,8 @@ class SyntheticGenerator:
                 tax_id=f"TAX{self.rng.randint(10000000, 99999999)}",
                 currency=self.rng.choice(currencies),
                 payment_terms_days=self.rng.choice([15, 30, 45, 60]),
-                credit_status=self.rng.choices(credit_statuses, weights=[0.7, 0.15, 0.1, 0.05])[0],
+                # Start with a clean vendor master; credit holds are injected deliberately.
+                credit_status=CreditStatus.ACTIVE,
                 status=self.rng.choices(statuses, weights=[0.85, 0.1, 0.05])[0],
             )
             self.vendors.append(vendor)
@@ -337,7 +337,12 @@ class SyntheticGenerator:
         ExceptionCode.CREDIT_ISSUE: "_inject_credit_issue",
     }
 
-    def generate_invoices(self, count: int, multi_exception_rate: float = 0.1) -> list[Invoice]:
+    def generate_invoices(
+        self,
+        count: int,
+        multi_exception_rate: float = 0.1,
+        random_exception_rate: float = 0.3,
+    ) -> list[Invoice]:
         if not self.purchase_orders:
             raise ValueError("Must generate POs first")
 
@@ -373,7 +378,7 @@ class SyntheticGenerator:
                 all_exceptions_needed[exc_code] -= 1
                 inject_exception = True
             else:
-                inject_exception = self.rng.random() < 0.3
+                inject_exception = self.rng.random() < random_exception_rate
                 if inject_exception:
                     exc_code = self.rng.choice(exception_codes)
                 else:
