@@ -153,7 +153,11 @@ class SyntheticGenerator:
 
             lines = []
             for po_line in po.line_items:
-                qty_received = (po_line.quantity * Decimal(str(self._random_decimal(0.8, 1.0, 2)))).quantize(Decimal("0.01"))
+                # The baseline corpus represents fully received POs. Partial receipts
+                # are exercised by explicit GRN-mismatch injections and dedicated tests;
+                # random partial quantities here make otherwise-clean invoices appear
+                # mismatched against the full PO total.
+                qty_received = po_line.quantity
                 lines.append(GoodsReceiptLine(
                     line_id=self._next_line_id(),
                     po_line_id=po_line.line_id,
