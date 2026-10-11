@@ -105,8 +105,18 @@ class HybridContextEngine:
             rrf_constant=self.rrf_constant,
         )
 
+        # Enforce vendor scope before reranking so cross-vendor documents cannot
+        # crowd out usable evidence. Vendor-neutral evidence remains eligible.
+        scoped_candidates = [
+            candidate
+            for candidate in fused_candidates
+            if candidate.evidence.vendor_id in (None, exception_report.vendor_id)
+        ]
+
         # Cross-encoder reranking
-        reranked_candidates = self.reranker.rerank(query, fused_candidates, top_k=self.reranker_top_k)
+        reranked_candidates = self.reranker.rerank(
+            query, scoped_candidates, top_k=self.reranker_top_k
+        )
 
         # Evidence validity filtering
         validated_evidence = []
