@@ -1,5 +1,6 @@
 from decimal import Decimal
 from apx.data.generate_synthetic import SyntheticGenerator
+from apx.data.schemas import CreditStatus, ExceptionCode
 
 
 class TestDataGenerator:
@@ -59,6 +60,23 @@ class TestDataGenerator:
             assert i1["invoice_id"] == i2["invoice_id"]
             assert i1["vendor_id"] == i2["vendor_id"]
             assert i1["total"] == i2["total"]
+
+    def test_vendor_credit_state_is_reflected_in_ground_truth(self):
+        gen = SyntheticGenerator(seed=42)
+        gen.generate_vendors(10)
+        gen.generate_purchase_orders(30)
+        gen.generate_goods_receipts(30)
+        gen.generate_invoices(100)
+
+        vendor_by_id = {vendor.vendor_id: vendor for vendor in gen.vendors}
+        gt_by_invoice = {gt.invoice_id: gt for gt in gen.ground_truth}
+
+        for invoice in gen.invoices:
+            vendor = vendor_by_id[invoice.vendor_id]
+            gt = gt_by_invoice[invoice.invoice_id]
+            if vendor.credit_status.value != "ACTIVE":
+                assert ExceptionCode.CREDIT_ISSUE in gt.expected_exceptions
+                assert gt.expected_decision == "REVIEW"
 
     def test_different_seeds_produce_different_data(self):
         gen1 = SyntheticGenerator(seed=111)
