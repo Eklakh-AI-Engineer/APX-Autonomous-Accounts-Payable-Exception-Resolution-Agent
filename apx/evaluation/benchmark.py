@@ -133,7 +133,11 @@ class BenchmarkOrchestrator:
         generator.generate_vendors(count=35 if self.tier == "dev" else 35)
         generator.generate_purchase_orders(count=100 if self.tier == "dev" else 100)
         generator.generate_goods_receipts(count=75 if self.tier == "dev" else 75)
-        generator.generate_invoices(count=500 if self.tier == "dev" else 500, multi_exception_rate=0.15)
+        generator.generate_invoices(
+            count=500,
+            multi_exception_rate=0.15,
+            random_exception_rate=0.05,
+        )
         # Ground truth is generated as part of generate_invoices
 
         self.vendors = generator.vendors
