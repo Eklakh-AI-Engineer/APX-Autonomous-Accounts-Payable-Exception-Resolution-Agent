@@ -29,6 +29,19 @@ class TestDataGenerator:
         assert all(g.grn_id.startswith("GRN-") for g in grns)
         assert all(g.po_id in [p.po_id for p in gen.purchase_orders] for g in grns)
 
+    def test_baseline_receipts_match_po_quantities(self):
+        gen = SyntheticGenerator(seed=42)
+        gen.generate_vendors(10)
+        pos = gen.generate_purchase_orders(30)
+        grns = gen.generate_goods_receipts(30)
+
+        po_by_id = {po.po_id: po for po in pos}
+        for grn in grns:
+            po = po_by_id[grn.po_id]
+            po_quantities = {line.line_id: line.quantity for line in po.line_items}
+            for receipt_line in grn.line_items:
+                assert receipt_line.quantity_received == po_quantities[receipt_line.po_line_id]
+
     def test_generate_invoices(self):
         gen = SyntheticGenerator(seed=42)
         gen.generate_vendors(5)
