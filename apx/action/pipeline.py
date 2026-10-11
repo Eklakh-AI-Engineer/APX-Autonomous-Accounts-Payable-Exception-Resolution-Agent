@@ -54,7 +54,7 @@ class Phase4Pipeline:
         risk_assessment = self.risk_engine.assess(
             investigation_result=investigation_result,
             exception_report=exception_report,
-            evidence_set=None,  # Could pass evidence set if available
+            evidence_set=evidence_set,
         )
         
         # Step 2: Determine action type if not provided
@@ -129,7 +129,7 @@ class Phase4Pipeline:
         action_plan = self.process(
             investigation_result=investigation_result,
             exception_report=exception_report,
-            evidence_set=None,
+            evidence_set=evidence_set,
             action_type=action_type,
             action_params=action_params,
         )
