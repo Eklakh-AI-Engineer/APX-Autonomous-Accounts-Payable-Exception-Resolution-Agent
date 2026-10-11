@@ -95,7 +95,7 @@ class TestEvalDataset:
             )
             subprocess.run(
                 [sys.executable, "-m", "apx.evidence.populate_eval_labels", "--output-dir", tmpdir2],
-                cwd="/mnt/d/Opencode", capture_output=True, env=env, check=True
+                cwd=REPO_ROOT, capture_output=True, env=env, check=True
             )
             
             # Compare outputs
