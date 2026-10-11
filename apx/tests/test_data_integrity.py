@@ -1,13 +1,33 @@
 import json
+import sys
 from pathlib import Path
 from collections import Counter
 import pytest
 
-BOOTSTRAP_DIR = Path("apx/data/datasets/bootstrap")
-GT_DIR = Path("apx/data/datasets/ground_truth")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+BOOTSTRAP_DIR = REPO_ROOT / "apx/data/datasets/bootstrap"
+GT_DIR = REPO_ROOT / "apx/data/datasets/ground_truth"
+
+
+def ensure_bootstrap_dataset():
+    """Generate the deterministic test dataset when ignored artifacts are absent."""
+    required_files = [
+        BOOTSTRAP_DIR / "vendors.json",
+        BOOTSTRAP_DIR / "purchase_orders.json",
+        BOOTSTRAP_DIR / "goods_receipts.json",
+        BOOTSTRAP_DIR / "invoices.json",
+        GT_DIR / "ground_truth.json",
+    ]
+    if not all(path.is_file() for path in required_files):
+        from apx.data.generate_synthetic import SyntheticGenerator
+
+        generator = SyntheticGenerator(seed=42)
+        generator.generate_all()
+        generator.save(REPO_ROOT / "apx/data/datasets")
 
 
 def load_bootstrap():
+    ensure_bootstrap_dataset()
     with open(BOOTSTRAP_DIR / "vendors.json") as f:
         vendors = json.load(f)
     with open(BOOTSTRAP_DIR / "purchase_orders.json") as f:
@@ -20,6 +40,7 @@ def load_bootstrap():
 
 
 def load_ground_truth():
+    ensure_bootstrap_dataset()
     with open(GT_DIR / "ground_truth.json") as f:
         return json.load(f)
 
@@ -203,11 +224,10 @@ class TestDataIntegrity:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             env = os.environ.copy()
-            env["PATH"] = "/home/eklakhdewan/.local/bin:" + env["PATH"]
 
             result1 = subprocess.run(
-                ["python3", "-m", "apx.data.generate_synthetic", "--seed", "42"],
-                cwd="/mnt/d/Opencode",
+                [sys.executable, "-m", "apx.data.generate_synthetic", "--seed", "42"],
+                cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
                 env=env
@@ -218,8 +238,8 @@ class TestDataIntegrity:
                 invs1 = json.load(f)
 
             result2 = subprocess.run(
-                ["python3", "-m", "apx.data.generate_synthetic", "--seed", "42"],
-                cwd="/mnt/d/Opencode",
+                [sys.executable, "-m", "apx.data.generate_synthetic", "--seed", "42"],
+                cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
                 env=env

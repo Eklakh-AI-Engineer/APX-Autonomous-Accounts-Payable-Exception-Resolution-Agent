@@ -5,6 +5,7 @@ from apx.agent.controller import run_investigation
 from apx.agent.models import InvestigationResult
 from apx.agent.state_machine import AgentState, TerminalOutcome
 from apx.agent.llm.mock import MockLLMProvider
+from apx.agent.llm.base import InvestigationFindings
 from apx.data.schemas import (
     ExceptionReport, ExceptionCode, ExceptionSeverity, 
     APException, ValidationStatus
@@ -383,3 +384,39 @@ class TestMockLLMDeterminism:
         assert findings1.proposed_outcome == findings2.proposed_outcome
         assert findings1.confidence == findings2.confidence
         assert findings1.findings == findings2.findings
+
+def test_structured_resolve_proposal_is_preserved_without_keyword_in_findings():
+    class ResolveProvider:
+        def investigate(self, exception_report, evidence_summaries, current_state, budget_remaining):
+            return InvestigationFindings(
+                findings="Evidence supports a low-risk correction.",
+                evidence_ids=["EV-00001"],
+                proposed_outcome="RESOLVE",
+                confidence=0.95,
+                information_needed=[],
+            )
+
+        def get_provider_name(self):
+            return "test-resolve"
+
+    report = ExceptionReport(
+        invoice_id="INV-STRUCTURED-RESOLVE",
+        vendor_id="V-0001",
+        exceptions=[
+            APException(
+                exception_code=ExceptionCode.AMOUNT_MISMATCH,
+                severity=ExceptionSeverity.MEDIUM,
+                message="Amount mismatch",
+            )
+        ],
+        validation_status=ValidationStatus.EXCEPTIONS,
+    )
+    result = run_investigation(
+        exception_report=report,
+        evidence_set=create_test_evidence_set(),
+        budget_limit=5,
+        llm_provider=ResolveProvider(),
+    )
+
+    assert result.outcome == TerminalOutcome.RESOLVE
+    assert "RESOLVE" not in result.findings.upper()

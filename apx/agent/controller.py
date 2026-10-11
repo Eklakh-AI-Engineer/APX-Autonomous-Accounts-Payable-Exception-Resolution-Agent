@@ -30,6 +30,7 @@ class BoundedInvestigationAgent:
         self.evidence_ids_used: list[str] = []
         self.findings_log: list[str] = []
         self.termination_reason = ""
+        self.proposed_outcome: TerminalOutcome | None = None
         self._llm: LLMProvider = context.llm_provider
     
     def run(self) -> InvestigationResult:
@@ -132,10 +133,16 @@ class BoundedInvestigationAgent:
             self.findings_log.append(findings.findings)
             
             # Check if we should move to decision
-            if findings.proposed_outcome in ["RESOLVE", "REQUEST_INFO", "ESCALATE"]:
+            if findings.proposed_outcome in {outcome.value for outcome in TerminalOutcome}:
                 if findings.confidence >= 0.7 or self.budget_used >= self.budget_limit - 1:
+                    # Preserve the structured proposal. Final decisions must not be
+                    # inferred from free-text findings, which may omit outcome labels.
+                    self.proposed_outcome = TerminalOutcome(findings.proposed_outcome)
                     self._transition_to(AgentState.DECISION_READY)
-                    self.termination_reason = f"LLM proposed {findings.proposed_outcome} with confidence {findings.confidence}"
+                    self.termination_reason = (
+                        f"LLM proposed {findings.proposed_outcome} "
+                        f"with confidence {findings.confidence}"
+                    )
             
             self._log_step(
                 action="llm_investigation",
@@ -225,14 +232,9 @@ class BoundedInvestigationAgent:
         # Determine outcome from final state
         outcome = None
         if self.state == AgentState.DECISION_READY:
-            # Determine from findings
-            findings_text = " ".join(self.findings_log).upper()
-            if "RESOLVE" in findings_text:
-                outcome = TerminalOutcome.RESOLVE
-            elif "REQUEST_INFO" in findings_text:
-                outcome = TerminalOutcome.REQUEST_INFO
-            else:
-                outcome = TerminalOutcome.ESCALATE
+            # Fail closed when no sufficiently confident structured proposal was
+            # accepted. Natural-language findings are not a decision interface.
+            outcome = self.proposed_outcome or TerminalOutcome.ESCALATE
         
         # If no outcome determined, default based on budget
         if outcome is None:

@@ -133,7 +133,11 @@ class BenchmarkOrchestrator:
         generator.generate_vendors(count=35 if self.tier == "dev" else 35)
         generator.generate_purchase_orders(count=100 if self.tier == "dev" else 100)
         generator.generate_goods_receipts(count=75 if self.tier == "dev" else 75)
-        generator.generate_invoices(count=500 if self.tier == "dev" else 500, multi_exception_rate=0.15)
+        generator.generate_invoices(
+            count=500,
+            multi_exception_rate=0.15,
+            random_exception_rate=0.05,
+        )
         # Ground truth is generated as part of generate_invoices
 
         self.vendors = generator.vendors
@@ -371,13 +375,11 @@ class BenchmarkOrchestrator:
         gt_map = {gt.invoice_id: gt for gt in self.ground_truths}
 
         # Run evaluations
-        print("Running Layer 1: Extraction Evaluation...")
-        extraction_results = []
-        for invoice in self.invoices:
-            extraction_results.append(self.extraction_eval.evaluate_invoice(invoice, invoice))
-
-        # Aggregate extraction
-        extraction_agg = self.extraction_eval.aggregate_results(extraction_results)
+        # The synthetic benchmark currently generates canonical Invoice objects; it does
+        # not produce an independent OCR/parser extraction to compare against ground truth.
+        # Comparing each invoice to itself would report a meaningless 100% extraction score.
+        print("Layer 1: Extraction Evaluation NOT MEASURED (no independent extraction output).")
+        extraction_agg = None
 
         print("Running Layer 2: Detection Evaluation...")
         detection = self.detection_eval.evaluate_batch(
@@ -470,10 +472,18 @@ class BenchmarkOrchestrator:
             f"Overall: {'PASSED' if result.passed else 'FAILED'}",
             "",
             "Layer 1 - Extraction Evaluation:",
-            f"  Exact Match Rate: {result.extraction.exact_match_rate:.2%}",
-            f"  Precision: {result.extraction.precision:.2%}",
-            f"  Recall: {result.extraction.recall:.2%}",
-            f"  F1: {result.extraction.f1:.2%}",
+            *(
+                [
+                    f"  Exact Match Rate: {result.extraction.exact_match_rate:.2%}",
+                    f"  Precision: {result.extraction.precision:.2%}",
+                    f"  Recall: {result.extraction.recall:.2%}",
+                    f"  F1: {result.extraction.f1:.2%}",
+                ]
+                if result.extraction is not None
+                else [
+                    "  NOT MEASURED: independent extraction output and ground truth are unavailable."
+                ]
+            ),
             "",
             "Layer 2 - Detection Evaluation:",
             f"  Precision: {result.detection.precision:.2%}",

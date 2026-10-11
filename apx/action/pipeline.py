@@ -50,11 +50,16 @@ class Phase4Pipeline:
         
         Returns an ActionPlan ready for execution (or already executed if auto-approved).
         """
+        # Generate the idempotency key before guardrail evaluation so the
+        # required-key check evaluates the exact key persisted on the action plan.
+        from uuid import uuid4
+        idempotency_key = idempotency_key or str(uuid4())
+
         # Step 1: Risk Assessment
         risk_assessment = self.risk_engine.assess(
             investigation_result=investigation_result,
             exception_report=exception_report,
-            evidence_set=None,  # Could pass evidence set if available
+            evidence_set=evidence_set,
         )
         
         # Step 2: Determine action type if not provided
@@ -79,6 +84,7 @@ class Phase4Pipeline:
             guardrail_result=guardrail_result,
             action_type=action_type,
             action_params=action_params,
+            idempotency_key=idempotency_key,
         )
         
         # Step 5: Handle approval if required
@@ -129,7 +135,7 @@ class Phase4Pipeline:
         action_plan = self.process(
             investigation_result=investigation_result,
             exception_report=exception_report,
-            evidence_set=None,
+            evidence_set=evidence_set,
             action_type=action_type,
             action_params=action_params,
         )
@@ -175,6 +181,7 @@ class Phase4Pipeline:
         guardrail_result: Any,
         action_type: str,
         action_params: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
     ) -> Any:  # ActionPlan
         from apx.action.models import ActionPlan, ActionType, ActionStatus, ApprovalStatus
         from uuid import uuid4
@@ -196,7 +203,7 @@ class Phase4Pipeline:
             risk_assessment=risk_assessment,
             guardrail_decision=guardrail_result,
             approval_status=approval_status,
-            idempotency_key=str(uuid4()),
+            idempotency_key=idempotency_key or str(uuid4()),
             rate_limit_ok=True,
             evidence_ids=investigation_result.evidence_ids,
             investigation_result_ref=investigation_result.case_id if hasattr(investigation_result, 'case_id') else investigation_result.invoice_id,

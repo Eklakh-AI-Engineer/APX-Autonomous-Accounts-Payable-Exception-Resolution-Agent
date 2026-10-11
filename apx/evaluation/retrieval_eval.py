@@ -77,10 +77,19 @@ class RetrievalEvaluator:
         # nDCG@10
         ndcg_at_10 = self._compute_ndcg(candidates, relevance_map, 10)
 
-        # Valid evidence rate
-        valid_count = sum(1 for c in candidates if c.evidence.evidence_id in relevant_ids)
+        # Runtime validity and relevance are distinct concepts: use the
+        # validator's status for validity, and relevance labels for ranking metrics.
+        validity_by_id = {
+            item.evidence.evidence_id: item.validity_status
+            for item in evidence_set.validated_evidence
+        }
         total_candidates = len(candidates)
-        valid_evidence_rate = valid_count / total_candidates if total_candidates > 0 else 0.0
+        valid_count = sum(
+            1
+            for candidate in candidates
+            if validity_by_id.get(candidate.evidence.evidence_id) == ValidityStatus.VALID
+        )
+        valid_evidence_rate = valid_count / total_candidates if total_candidates else 0.0
 
         # Invalid evidence rejection rate
         invalid_in_results = sum(1 for c in candidates if c.evidence.evidence_id in invalid_ids)
@@ -89,7 +98,11 @@ class RetrievalEvaluator:
 
         # Vendor scope correctness
         # This requires invoice/vendor context
-        vendor_correct = sum(1 for c in candidates if c.evidence.vendor_id == evidence_set.vendor_id)
+        vendor_correct = sum(
+            1
+            for c in candidates
+            if c.evidence.vendor_id in (None, evidence_set.vendor_id)
+        )
         vendor_scope_correctness = vendor_correct / total_candidates if total_candidates > 0 else 0.0
 
         return RetrievalResult(

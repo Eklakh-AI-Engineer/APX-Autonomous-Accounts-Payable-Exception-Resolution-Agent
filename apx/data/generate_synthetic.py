@@ -81,7 +81,6 @@ class SyntheticGenerator:
 
     def generate_vendors(self, count: int) -> list[Vendor]:
         currencies = list(Currency)
-        credit_statuses = list(CreditStatus)
         statuses = list(VendorStatus)
 
         for i in range(count):
@@ -91,7 +90,8 @@ class SyntheticGenerator:
                 tax_id=f"TAX{self.rng.randint(10000000, 99999999)}",
                 currency=self.rng.choice(currencies),
                 payment_terms_days=self.rng.choice([15, 30, 45, 60]),
-                credit_status=self.rng.choices(credit_statuses, weights=[0.7, 0.15, 0.1, 0.05])[0],
+                # Start with a clean vendor master; credit holds are injected deliberately.
+                credit_status=CreditStatus.ACTIVE,
                 status=self.rng.choices(statuses, weights=[0.85, 0.1, 0.05])[0],
             )
             self.vendors.append(vendor)
@@ -153,7 +153,11 @@ class SyntheticGenerator:
 
             lines = []
             for po_line in po.line_items:
-                qty_received = (po_line.quantity * Decimal(str(self._random_decimal(0.8, 1.0, 2)))).quantize(Decimal("0.01"))
+                # The baseline corpus represents fully received POs. Partial receipts
+                # are exercised by explicit GRN-mismatch injections and dedicated tests;
+                # random partial quantities here make otherwise-clean invoices appear
+                # mismatched against the full PO total.
+                qty_received = po_line.quantity
                 lines.append(GoodsReceiptLine(
                     line_id=self._next_line_id(),
                     po_line_id=po_line.line_id,
@@ -333,7 +337,12 @@ class SyntheticGenerator:
         ExceptionCode.CREDIT_ISSUE: "_inject_credit_issue",
     }
 
-    def generate_invoices(self, count: int, multi_exception_rate: float = 0.1) -> list[Invoice]:
+    def generate_invoices(
+        self,
+        count: int,
+        multi_exception_rate: float = 0.1,
+        random_exception_rate: float = 0.3,
+    ) -> list[Invoice]:
         if not self.purchase_orders:
             raise ValueError("Must generate POs first")
 
@@ -369,7 +378,7 @@ class SyntheticGenerator:
                 all_exceptions_needed[exc_code] -= 1
                 inject_exception = True
             else:
-                inject_exception = self.rng.random() < 0.3
+                inject_exception = self.rng.random() < random_exception_rate
                 if inject_exception:
                     exc_code = self.rng.choice(exception_codes)
                 else:
@@ -474,6 +483,30 @@ class SyntheticGenerator:
             if not expected_exceptions:
                 self._clean_invoices.append(clean_invoice)
             invoices_generated += 1
+
+        # Ground truth must reflect shared vendor-master state. A vendor credit hold
+        # applies to every invoice for that vendor in this generated snapshot, not only
+        # the invoice that happened to trigger the mutation.
+        vendor_by_id = {vendor.vendor_id: vendor for vendor in self.vendors}
+        ground_truth_by_invoice = {gt.invoice_id: gt for gt in self.ground_truth}
+        for invoice in self.invoices:
+            vendor_record = vendor_by_id.get(invoice.vendor_id)
+            if not vendor_record or vendor_record.credit_status == CreditStatus.ACTIVE:
+                continue
+            gt = ground_truth_by_invoice.get(invoice.invoice_id)
+            if gt is None:
+                continue
+            if ExceptionCode.CREDIT_ISSUE not in gt.expected_exceptions:
+                gt.expected_exceptions.append(ExceptionCode.CREDIT_ISSUE)
+            gt.injected_exceptions.setdefault(
+                ExceptionCode.CREDIT_ISSUE.value,
+                {
+                    "injected": False,
+                    "source": "vendor_master_state",
+                    "credit_status": vendor_record.credit_status.value,
+                },
+            )
+            gt.expected_decision = "REVIEW"
 
         return self.invoices
 
