@@ -196,6 +196,18 @@ class TestActionExecutor:
         assert action_plan.status == ActionStatus.EXECUTED
         assert action_plan.execution_result is not None
 
+    def test_production_execution_fails_closed_without_durable_dispatch(self):
+        executor = ActionExecutor(config=ActionExecutorConfig(dry_run=False))
+        action_plan = create_test_action_plan(approval_status=ApprovalStatus.NOT_REQUIRED)
+        called = []
+        executor.register_adapter("AUTO_RESOLVE", lambda plan: called.append(plan))
+
+        result = executor.execute(action_plan)
+
+        assert result.success is False
+        assert "durable action ledger" in result.error_message
+        assert called == []
+
     def test_execute_unapproved_action_fails(self):
         """Test execution fails when action not approved."""
         executor = ActionExecutor()

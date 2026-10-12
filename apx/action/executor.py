@@ -96,6 +96,16 @@ class ActionExecutor:
         """
         from apx.action.models import ActionStatus
 
+        # This candidate has no durable dispatch claim/reconciliation adapter.
+        # Refuse real side effects until that ledger protocol is wired end to end.
+        if not self.config.dry_run:
+            return ActionResult(
+                action_id=action_plan.action_id,
+                success=False,
+                error_message="Production execution is disabled: durable action ledger and outcome reconciliation are not configured",
+                dry_run=False,
+            )
+
         guardrail_requires_approval = bool(
             action_plan.guardrail_decision
             and getattr(action_plan.guardrail_decision, "requires_approval", False)
