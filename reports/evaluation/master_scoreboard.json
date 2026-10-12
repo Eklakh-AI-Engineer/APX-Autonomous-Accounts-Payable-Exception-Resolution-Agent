@@ -1,7 +1,7 @@
 {
   "status": "fresh DEV benchmark passed narrow configured gates; release acceptance blocked",
-  "source": "CI run 38223749502 artifact benchmark_dev_20261012_083441.json",
-  "captured_at": "2026-10-12T08:34:41Z",
+  "source": "CI run 38226370970 artifact benchmark_dev_20261012_090045.json",
+  "captured_at": "2026-10-12T09:00:45Z",
   "tier": "dev",
   "seed": 42,
   "reference_date": "2026-08-29",
@@ -40,18 +40,19 @@
     "unauthorized_action_rate": 0.0,
     "automation_rate": 0.544,
     "business_decision_accuracy": 0.496,
-    "average_latency_ms": 119.1,
+    "average_latency_ms": 118.5,
     "estimated_net_cost_per_case_usd": -4.902
   },
   "failure_reasons": [],
   "limitations": [
-    "Fresh DEV benchmark contains structured synthetic invoices; independent document extraction is not measured.",
+    "Fresh DEV benchmark uses 500 synthetic structured invoices; independent document extraction/OCR is not measured.",
     "Configured gates omit several low quality metrics; command pass is not release acceptance.",
-    "Frozen retrieval labels have no reviewer/adjudication provenance or invoice/job mapping."
+    "Frozen retrieval labels have no reviewer/adjudication provenance or invoice/job mapping.",
+    "Enum-normalization update produced no changes in 498 action-error or 189 decision-error rows compared with baseline."
   ],
   "candidate_integrity_check": {
-    "commit": "37e61bd21f9d121e08e04462afa3063030989f6d",
-    "ci_run": "38223749502",
+    "commit": "be78e98ae9d4ecfddc1c606ef58e3f530efb2c15",
+    "ci_run": "38226370970",
     "ci_status": "success",
     "eval_dataset_sha256": "177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd",
     "evidence_corpus_sha256": "09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86",
@@ -65,9 +66,9 @@
     "acceptance_status": "BLOCKED"
   },
   "current_candidate_run": {
-    "commit": "37e61bd21f9d121e08e04462afa3063030989f6d",
-    "ci_run": "38223749502",
-    "artifact": "benchmark_dev_20261012_083441.json",
+    "commit": "be78e98ae9d4ecfddc1c606ef58e3f530efb2c15",
+    "ci_run": "38226370970",
+    "artifact": "benchmark_dev_20261012_090045.json",
     "tier": "dev",
     "seed": 42,
     "reference_date": "2026-08-29",
@@ -96,7 +97,7 @@
       "unauthorized_action_rate": 0.0,
       "automation_rate": 0.544,
       "business_decision_accuracy": 0.496,
-      "average_latency_ms": 132.3,
+      "average_latency_ms": 118.5,
       "estimated_net_cost_per_case_usd": -4.902,
       "approval_requirement_accuracy": 0.384,
       "approval_requirement_correct": 192,
@@ -124,7 +125,29 @@
       "execution_success_rate": 0.496,
       "execution_successes": 248
     },
-    "quality_disposition": "BLOCKED: weak action completion, action type, approval requirement, guardrail, decision, and evidence-validity metrics; benchmark gate omits these measures; no human-review provenance; extraction not measured",
-    "average_latency_ms": 119.1
+    "quality_disposition": "BLOCKED: benchmark command passed narrow configured gates only; quality metrics and missing reviewer provenance/mappings block release acceptance; synthetic structured input does not measure document extraction.",
+    "average_latency_ms": 118.5,
+    "comparison_to_baseline": {
+      "baseline_commit": "37e61bd21f9d121e08e04462afa3063030989f6d",
+      "baseline_ci_run": "38223749502",
+      "baseline_artifact": "benchmark_dev_20261012_083441.json",
+      "action_error_rows_changed": 0,
+      "decision_error_rows_changed": 0,
+      "action_error_case_count": 498,
+      "action_error_counts": {
+        "action_type_mismatch": 189,
+        "action_not_successful": 252,
+        "guardrail_mismatch": 210,
+        "approval_requirement_mismatch": 308
+      },
+      "decision_error_case_count": 189,
+      "decision_error_counts": {
+        "decision_mismatch": 189,
+        "risk_mismatch": 35,
+        "escalation_mismatch": 163
+      }
+    },
+    "artifact_id": "11736993879",
+    "artifact_archive_sha256": "b05f0ed731092738d2c2e5f8f980bc8c95f31c9dfda1e3818cfa10963de982cb"
   }
 }

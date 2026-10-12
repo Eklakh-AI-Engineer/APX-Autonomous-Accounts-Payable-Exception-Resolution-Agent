@@ -179,6 +179,22 @@ class TestActionGuardrail:
         assert compatibility[0].passed is False
         assert compatibility[0].severity == "ERROR"
 
+    def test_guardrail_normalizes_non_string_enum_investigation_outcome(self):
+        from enum import Enum
+        from types import SimpleNamespace
+
+        class InvestigationOutcome(Enum):
+            ESCALATE = "ESCALATE"
+
+        result = ActionGuardrail()._check_investigation_outcome(
+            SimpleNamespace(outcome=InvestigationOutcome.ESCALATE),
+            ActionType.AUTO_RESOLVE,
+        )
+
+        assert result.passed is False
+        assert result.check_name == "investigation_outcome_compatible"
+        assert result.severity == "ERROR"
+
     def test_guardrail_requires_approval_for_medium_risk(self):
         """Test guardrail requires approval for medium risk action that allows medium risk."""
         guardrail = ActionGuardrail()
