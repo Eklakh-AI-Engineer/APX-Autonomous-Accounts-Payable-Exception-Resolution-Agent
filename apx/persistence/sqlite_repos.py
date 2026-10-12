@@ -600,7 +600,8 @@ class SQLiteApprovalRepository(ApprovalRepository):
                     ApprovalORM.approval_id == approval_id,
                     ApprovalORM.status == ApprovalStatus.PENDING.value,
                     ApprovalORM.revoked_at.is_(None),
-                    (ApprovalORM.expires_at.is_(None) | (ApprovalORM.expires_at > now)),
+                    ApprovalORM.expires_at.is_not(None),
+                    ApprovalORM.expires_at > now,
                 )
                 .values(status=status.value, resolved_by=approver_id, resolved_at=now, notes=notes or "")
             )

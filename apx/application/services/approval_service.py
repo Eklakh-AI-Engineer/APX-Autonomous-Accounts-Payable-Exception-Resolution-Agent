@@ -39,7 +39,9 @@ class ApprovalService:
             raise ValueError(f"Approval is not pending: {approval.status}")
         if approval.revoked_at is not None:
             raise ValueError("Approval has been revoked")
-        if approval.expires_at is not None and approval.expires_at <= datetime.utcnow():
+        if approval.expires_at is None:
+            raise ValueError("Approval expiry is missing")
+        if approval.expires_at <= datetime.utcnow():
             raise ValueError("Approval has expired")
 
         eligible = set(approval.required_approvers or [])
@@ -91,7 +93,9 @@ class ApprovalService:
             raise ValueError(f"Approval is not pending: {approval.status}")
         if approval.revoked_at is not None:
             raise ValueError("Approval has been revoked")
-        if approval.expires_at is not None and approval.expires_at <= datetime.utcnow():
+        if approval.expires_at is None:
+            raise ValueError("Approval expiry is missing")
+        if approval.expires_at <= datetime.utcnow():
             raise ValueError("Approval has expired")
 
         eligible = set(approval.required_approvers or [])

@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import threading
 import time
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
@@ -682,6 +683,27 @@ class TestApprovalRepository:
         resolved = repo.get(approval_id)
         assert resolved.status == ApprovalStatus.APPROVED
         assert resolved.resolved_by == "approver-1"
+
+    def test_resolve_rejects_missing_or_expired_expiry(self, clean_db, persisted_invoice):
+        repo = SQLiteApprovalRepository()
+        case_repo = SQLiteCaseRepository()
+        case_id = uuid4()
+        case_repo.create(case_id, persisted_invoice.invoice_id, persisted_invoice.vendor_id)
+        from apx.action.models import ApprovalRequest, ApprovalStatus
+
+        approval_id = repo.create(ApprovalRequest(
+            action_plan_id=str(case_id),
+            action_type="ADJUST_PAYMENT",
+            risk_level="HIGH",
+            requested_by="requester-1",
+            expires_at=datetime.utcnow() - timedelta(seconds=1),
+        ))
+        assert not repo.resolve(approval_id, ApprovalStatus.APPROVED, "approver-1")
+        from apx.persistence.database import session_scope
+        from apx.persistence.models import ApprovalORM
+        with session_scope() as session:
+            session.get(ApprovalORM, approval_id).expires_at = None
+        assert not repo.resolve(approval_id, ApprovalStatus.APPROVED, "approver-1")
 
     def test_list_pending(self, clean_db, persisted_invoice):
         """Test listing pending approvals."""

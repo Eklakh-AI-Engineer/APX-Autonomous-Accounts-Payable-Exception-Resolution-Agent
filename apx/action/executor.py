@@ -251,7 +251,9 @@ class ActionExecutor:
             return "No approved durable authorization exists"
         if approval.revoked_at is not None:
             return "Approval has been revoked"
-        if approval.expires_at is not None and approval.expires_at <= datetime.utcnow():
+        if approval.expires_at is None:
+            return "Approval expiry is missing"
+        if approval.expires_at <= datetime.utcnow():
             return "Approval has expired"
         if approval.resolved_by == approval.requested_by or not approval.resolved_by:
             return "Approval identity or separation of duties is invalid"
