@@ -46,5 +46,15 @@
     "verification_candidate_commit": "9179840cd029120e4d019ad421b91a1a5ea25d39",
     "intermediate_run_90_to_91_action_error_rows_changed": 0,
     "intermediate_run_90_to_91_decision_error_rows_changed": 0
-  }
+  },
+  "latest_branch_head": "e9f56ffc3a34047b277d8e18afe6fcae5de366d2",
+  "latest_head_ci_run": "38229883761",
+  "latest_head_ci_status": "passed",
+  "latest_head_ci_summary": {
+    "api_tests": "61 passed, 1 skipped",
+    "full_suite": "423 passed, 1 skipped",
+    "configured_ruff": "passed",
+    "deterministic_benchmark": "completed"
+  },
+  "benchmark_code_candidate": "9179840cd029120e4d019ad421b91a1a5ea25d39"
 }
