@@ -47,9 +47,9 @@
     "intermediate_run_90_to_91_action_error_rows_changed": 0,
     "intermediate_run_90_to_91_decision_error_rows_changed": 0
   },
-  "latest_branch_head": "377efa538cd89b93043252498252499da2e872a7",
-  "latest_head_ci_run": "38231253035",
+  "latest_branch_head": "9222efcaba58126d6c1f922dd4bf1475a0fb5ee5",
+  "latest_head_ci_run": "pending",
   "latest_head_ci_status": "pending",
-  "latest_head_ci_summary": "Documentation/evidence-only commits were pushed after CI #94; re-verification is pending.",
+  "latest_head_ci_summary": "Further documentation updates were pushed after CI #94; rerun verification before accepting this metadata head.",
   "benchmark_code_candidate": "9179840cd029120e4d019ad421b91a1a5ea25d39"
 }
