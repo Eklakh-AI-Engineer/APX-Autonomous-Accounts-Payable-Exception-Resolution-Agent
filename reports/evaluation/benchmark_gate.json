@@ -1,9 +1,9 @@
 {
   "status": "BLOCKED",
-  "reason": "Fresh deterministic DEV benchmark on tested candidate 9179840 passed narrow configured gates; release acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance and invoice/job mappings, and unmeasured document extraction.",
-  "candidate_commit": "9179840cd029120e4d019ad421b91a1a5ea25d39",
-  "ci_run": "38228330768",
-  "fresh_result": "benchmark_dev_20261012_091921.json",
+  "reason": "Fresh deterministic DEV benchmark on candidate 5075f635 passed narrow configured gates; release acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance and invoice/job mappings, and unmeasured document extraction.",
+  "candidate_commit": "5075f63596a5ec326972584e82444ebf560148f8",
+  "ci_run": "38280448648",
+  "fresh_result": "benchmark_dev_20261012_165838.json",
   "fresh_run_status": "configured_gates_passed_quality_acceptance_blocked",
   "historical_result": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
   "fresh_run_required": false,
@@ -17,10 +17,13 @@
     "Review low decision/action/approval/evidence-validity measures and per-case error analysis; do not infer acceptance from the narrow command exit",
     "Obtain independent policy-owner review of inferred approval requirements; no human reviewer provenance is present"
   ],
-  "ci_push_run": "38228330768",
+  "ci_push_run": "38280448648",
+  "test_summary": "CI #142 success: API 61 passed/1 skipped; focused 132 passed; full suite 430 passed/1 skipped; configured Ruff passed.",
   "benchmark_command": "python -m apx.evaluation.benchmark --tier dev --seed 42 --output artifacts/benchmark (workflow default APX_REFERENCE_DATE=2026-08-29)",
-  "artifact_id": "11738111338",
-  "artifact_archive_sha256": "82e7fbe8db5c38f6148d28717f4478edfd8393d0c25a2e238c282064fc5d5f24",
+  "artifact_id": "11761825526",
+  "artifact_archive_sha256": "8d39210bfacd72838aaa9b665b21dbac22ae5d4f5facbb8355dd7c6749d2d8ce",
+  "test_artifact_id": "11760374494",
+  "test_artifact_archive_sha256": "638db10aff5075797f0cd9e62e140ffedf97c93acada364c514ddf070250787c",
   "dataset_sha256": "177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd",
   "evidence_corpus_sha256": "09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86",
   "baseline_comparison": {
@@ -42,10 +45,43 @@
       "escalation_mismatch": 163
     },
     "decision_error_case_union": "189/500",
-    "interpretation": "Enum-normalization change did not alter any keyed per-case benchmark row or action/guardrail metric. Categories overlap.",
-    "verification_candidate_commit": "9179840cd029120e4d019ad421b91a1a5ea25d39",
+    "interpretation": "Enum-normalization and invalid-evidence boundary changes did not alter keyed action, guardrail, or decision results. CI #142 matches #138 with zero changed rows across 687 combined action/decision error records. Categories overlap.",
+    "latest_comparison_baseline_ci_run": "38278704879",
+    "latest_comparison_baseline_artifact": "benchmark_dev_20261012_164309.json",
+    "latest_combined_error_rows_changed": 0,
+    "latest_action_error_rows_changed": 0,
+    "latest_decision_error_rows_changed": 0,
+    "verification_candidate_commit": "5075f63596a5ec326972584e82444ebf560148f8",
     "intermediate_run_90_to_91_action_error_rows_changed": 0,
     "intermediate_run_90_to_91_decision_error_rows_changed": 0
   },
-  "benchmark_code_candidate": "9179840cd029120e4d019ad421b91a1a5ea25d39"
+  "benchmark_code_candidate": "5075f63596a5ec326972584e82444ebf560148f8",
+  "retrieval_metric_contract": {
+    "query_count": 10,
+    "case_ids": ["EVAL-001", "EVAL-002", "EVAL-003", "EVAL-004", "EVAL-005", "EVAL-006", "EVAL-007", "EVAL-008", "EVAL-009", "EVAL-010"],
+    "relevant_evidence_label_ids": 10,
+    "irrelevant_evidence_label_ids": 35,
+    "invalid_evidence_label_ids": 2305,
+    "retrieved_candidate_count": 48,
+    "retrieved_valid_count": 26,
+    "retrieved_stale_count": 20,
+    "retrieved_invalid_outcome_count": 2,
+    "validity_status_per_query": {
+      "EVAL-001": {"valid": 2, "stale": 1},
+      "EVAL-002": {"valid": 4, "stale": 2},
+      "EVAL-003": {"valid": 3, "stale": 2},
+      "EVAL-004": {"valid": 1, "stale": 1},
+      "EVAL-005": {"valid": 3, "stale": 4},
+      "EVAL-006": {"valid": 3, "stale": 2},
+      "EVAL-007": {"valid": 1},
+      "EVAL-008": {"valid": 1, "stale": 3},
+      "EVAL-009": {"valid": 5, "stale": 3, "invalid_outcome": 1},
+      "EVAL-010": {"valid": 3, "stale": 2, "invalid_outcome": 1}
+    },
+    "invalid_evidence_policy": "Evidence with non-VALID status is excluded from investigation model inputs and cited/used evidence IDs.",
+    "validity_aggregation": "Macro-average over 10 query-level ratios: valid retrieved candidates / retrieved candidates for that query; candidate counts vary and are not the invoice count.",
+    "invalid_rejection_aggregation": "Macro-average over queries with one or more invalid evidence labels; current frozen dataset denominator is 10 queries. Queries without invalid labels are excluded as not applicable.",
+    "reviewer_adjudication_provenance_present": false,
+    "invoice_job_mapping_present": false
+  }
 }
