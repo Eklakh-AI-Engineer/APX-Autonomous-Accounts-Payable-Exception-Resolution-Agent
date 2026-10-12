@@ -45,18 +45,32 @@ jobs:
           PY
       - name: Generate deterministic bootstrap dataset
         run: python -m apx.data.generate_synthetic --seed 42
-      - name: Run focused observability and security regressions
+      - name: Reproduce invoice processing regression with sanitized diagnostics
         run: |
           mkdir -p artifacts
           set -o pipefail
           python -m pytest \
-            apx/tests/test_api.py \
+            apx/tests/test_api.py::TestInvoiceEndpoints::test_process_invoice \
+            -q --tb=short 2>&1 | tee artifacts/invoice-processing-repro.log
+      - name: Run complete API test module
+        if: always()
+        run: |
+          mkdir -p artifacts
+          set -o pipefail
+          python -m pytest apx/tests/test_api.py -q --tb=short 2>&1 | tee artifacts/api-tests.log
+      - name: Run approval, persistence, guardrail, action, tracing, and redaction modules
+        if: always()
+        run: |
+          mkdir -p artifacts
+          set -o pipefail
+          python -m pytest \
             apx/tests/test_tracing.py \
             apx/tests/test_persistence.py \
             apx/tests/test_phase4_guardrail.py \
             apx/tests/test_phase4_action.py \
             apx/tests/test_security_redaction.py -q --tb=short 2>&1 | tee artifacts/focused-tests.log
       - name: Run complete test suite
+        if: always()
         run: |
           mkdir -p artifacts
           python -m pytest apx/tests -q --junitxml=artifacts/junit.xml

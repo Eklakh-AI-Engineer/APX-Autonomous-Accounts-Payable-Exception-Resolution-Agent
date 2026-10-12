@@ -1,26 +1,34 @@
 from __future__ import annotations
 
+import json
+import logging
+import traceback
 from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 
+from apx.api.middleware import get_current_role, get_current_user_id, get_request_id
 from apx.api.schemas import (
+    ErrorResponse,
+    InvoiceLineResponse,
     InvoiceRequest,
     InvoiceResponse,
     InvoiceSubmitResponse,
     ProcessResponse,
     ValidationErrorResponse,
-    ErrorResponse,
 )
-from apx.api.schemas import InvoiceLineResponse
 from apx.application.services import get_invoice_service
-from apx.api.middleware import get_current_role, get_current_user_id, get_request_id
+from apx.observability.processing_diagnostics import (
+    get_processing_stage,
+    set_processing_stage,
+)
 from apx.persistence import CaseRepository
 from apx.persistence.database import get_session_factory
 
 router = APIRouter()
+logger = logging.getLogger("apx.api.routes.invoices")
 
 
 @router.post(
@@ -43,8 +51,9 @@ async def submit_invoice(
     # Check idempotency
     factory = get_session_factory()
     with factory() as session:
-        from apx.persistence.models import CaseORM
         from sqlalchemy import select
+
+        from apx.persistence.models import CaseORM
         existing = session.execute(
             select(CaseORM).where(CaseORM.idempotency_key == idempotency_key)
         ).scalar_one_or_none()
@@ -119,15 +128,45 @@ async def process_invoice(
     service = get_invoice_service()
 
     try:
+        set_processing_stage("invoice_service_call")
         result = service.process_invoice(invoice_id, idempotency_key, requested_by=requester_id)
+        set_processing_stage("response_serialization")
         return ProcessResponse(**result)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
-    except Exception as e:
-        raise HTTPException(
+    except Exception as exc:
+        # Log only exception class and traceback frame coordinates. Do not put
+        # exception messages, SQL, source lines, or local variables in logs or
+        # public responses.
+        frames = [
+            {"file": frame.filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1],
+             "line": frame.lineno,
+             "function": frame.name}
+            for frame in traceback.extract_tb(exc.__traceback__)
+        ]
+        request_id = getattr(request.state, "request_id", get_request_id())
+        correlation_id = getattr(request.state, "correlation_id", request_id)
+        logger.error(
+            json.dumps(
+                {
+                    "event": "invoice.processing_failed",
+                    "exception_type": type(exc).__name__,
+                    "stage": get_processing_stage(),
+                    "request_id": request_id,
+                    "correlation_id": correlation_id,
+                    "traceback": frames,
+                },
+                separators=(",", ":"),
+            )
+        )
+        return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Processing failed: {str(e)}",
+            content={
+                "error": "internal_error",
+                "message": "Invoice processing failed. Contact support with the request ID.",
+                "request_id": request_id,
+            },
         )

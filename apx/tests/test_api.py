@@ -201,12 +201,60 @@ class TestInvoiceEndpoints:
 
         # Process it
         response = client.post("/invoices/INV-TEST-004/process", headers=operator_headers)
-        assert response.status_code == 200
+        diagnostic = (
+            response.json()
+            if response.headers.get("content-type", "").startswith("application/json")
+            else {}
+        )
+        assert response.status_code == 200, (
+            f"status={response.status_code}, error={diagnostic.get('error')}, "
+            f"request_id={diagnostic.get('request_id')}"
+        )
         data = response.json()
         assert data["invoice_id"] == "INV-TEST-004"
         assert "case_id" in data
         if data["action_status"] == "PENDING":
             assert data["status"] == "awaiting_approval"
+
+    def test_process_invoice_failure_is_sanitized_and_logged(
+        self, client, operator_headers, monkeypatch, caplog
+    ):
+        """Unexpected processing errors are traceable without leaking details to clients."""
+        import logging
+
+        class FailingInvoiceService:
+            def process_invoice(self, *_args, **_kwargs):
+                raise RuntimeError("sensitive database detail must not be exposed")
+
+        monkeypatch.setattr(
+            "apx.api.routes.invoices.get_invoice_service",
+            lambda: FailingInvoiceService(),
+        )
+        caplog.set_level(logging.ERROR, logger="apx.api.routes.invoices")
+        response = client.post(
+            "/invoices/INV-DIAGNOSTIC/process",
+            headers={**operator_headers, "X-Correlation-ID": "diagnostic-correlation"},
+        )
+
+        assert response.status_code == 500
+        assert response.json()["error"] == "internal_error"
+        assert response.json()["message"] == (
+            "Invoice processing failed. Contact support with the request ID."
+        )
+        assert response.json()["request_id"]
+        assert "sensitive database detail" not in response.text
+        diagnostic_records = [
+            record.message
+            for record in caplog.records
+            if record.name == "apx.api.routes.invoices"
+            and '"event":"invoice.processing_failed"' in record.message
+        ]
+        assert diagnostic_records
+        assert '"exception_type":"RuntimeError"' in diagnostic_records[-1]
+        assert '"stage":"invoice_service_call"' in diagnostic_records[-1]
+        assert '"correlation_id":"diagnostic-correlation"' in diagnostic_records[-1]
+        assert '"function":"process_invoice"' in diagnostic_records[-1]
+        assert "sensitive database detail" not in diagnostic_records[-1]
 
     def test_process_nonexistent_invoice(self, client, operator_headers):
         """Test processing non-existent invoice returns 404."""
