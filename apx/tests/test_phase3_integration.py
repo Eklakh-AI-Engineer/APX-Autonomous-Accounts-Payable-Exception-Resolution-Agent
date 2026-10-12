@@ -203,7 +203,7 @@ class TestPhase3Integration:
                 validation_status=ValidationStatus.CLEAN,
             ),
             evidence_set=evidence_set,
-            budget_limit=3,
+            budget_limit=5,
             llm_provider=llm_provider,
         )
 
