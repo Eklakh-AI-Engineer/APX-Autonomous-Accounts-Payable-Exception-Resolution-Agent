@@ -267,10 +267,23 @@ class DecisionEvaluator:
             risk_assess = r.get("risk_assessment")
             guardrail = r.get("guardrail_result")
             action_plan = r.get("action_plan")
+            expected_raw = gt.expected_decision
+            expected_outcome = (
+                self._DECISION_MAP.get(expected_raw)
+                if isinstance(expected_raw, str)
+                else expected_raw
+            )
+            expected_risk = (
+                self._EXPECTED_RISK_MAP.get(expected_raw)
+                if isinstance(expected_raw, str)
+                else None
+            )
+            supported_outcome_label = expected_outcome is not None
+            supported_risk_label = expected_risk is not None
 
             if inv_result:
                 om = self.evaluate_investigation_outcome(inv_result, gt)
-                if gt.expected_decision is not None:
+                if supported_outcome_label:
                     all_outcome.total_cases += om.total_cases
                 all_outcome.correct_decisions += om.correct_decisions
                 all_outcome.resolve_tp += om.resolve_tp
@@ -285,7 +298,7 @@ class DecisionEvaluator:
 
             if risk_assess:
                 rm = self.evaluate_risk_classification(risk_assess, gt)
-                if gt.expected_decision in self._EXPECTED_RISK_MAP:
+                if supported_risk_label:
                     all_risk.total_cases += rm.total_cases
                 all_risk.risk_correct += rm.risk_correct
 
@@ -295,10 +308,7 @@ class DecisionEvaluator:
                     all_escalation.total_cases += em.total_cases
                     all_escalation.escalation_correct += em.escalation_correct
 
-            expected_raw = gt.expected_decision
-            expected_outcome = self._DECISION_MAP.get(expected_raw) if isinstance(expected_raw, str) else expected_raw
             actual_outcome = inv_result.outcome if inv_result else None
-            expected_risk = self._EXPECTED_RISK_MAP.get(expected_raw) if isinstance(expected_raw, str) else None
             actual_risk = risk_assess.risk_level if risk_assess else None
             errors = []
             if inv_result and expected_outcome is not None and actual_outcome != expected_outcome:

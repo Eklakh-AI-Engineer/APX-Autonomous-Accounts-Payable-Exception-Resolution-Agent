@@ -467,6 +467,22 @@ class TestDecisionEvaluator:
         assert result.per_case[0]["escalation_correct"] is None
         assert result.per_case[0]["errors"] == []
 
+    def test_unsupported_decision_label_is_not_counted_in_denominators(self):
+        gt = _create_test_ground_truth("INV-UNKNOWN-LABEL")
+        gt.expected_decision = "UNSUPPORTED"
+        result = DecisionEvaluator().evaluate_batch([{
+            "invoice_id": gt.invoice_id,
+            "investigation_result": _create_test_investigation_result(gt.invoice_id, TerminalOutcome.RESOLVE),
+            "risk_assessment": _create_test_risk_assessment(gt.invoice_id, RiskLevel.LOW),
+            "guardrail_result": _create_test_guardrail_result(GuardrailDecision.ALLOW),
+        }], [gt])
+        assert result.investigation_outcome_metrics.total_cases == 0
+        assert result.risk_classification_metrics.total_cases == 0
+        assert result.escalation_metrics.total_cases == 0
+        assert result.per_case[0]["outcome_correct"] is None
+        assert result.per_case[0]["risk_correct"] is None
+        assert result.per_case[0]["escalation_correct"] is None
+
 
 class TestActionEvaluator:
     """Tests for Layer 5 - Action Evaluation."""
@@ -558,7 +574,7 @@ class TestActionEvaluator:
         ]
         plans[0].risk_assessment = _create_test_risk_assessment("INV-BLOCK-TRUE", RiskLevel.HIGH)
         truths = [
-            _create_test_ground_truth("INV-BLOCK-TRUE", [ExceptionCode.CREDIT_ISSUE]),
+            _create_test_ground_truth("INV-BLOCK-TRUE", [ExceptionCode.AMOUNT_MISMATCH]),
             _create_test_ground_truth("INV-BLOCK-FALSE", [ExceptionCode.AMOUNT_MISMATCH]),
         ]
         results = evaluator.evaluate_batch(
