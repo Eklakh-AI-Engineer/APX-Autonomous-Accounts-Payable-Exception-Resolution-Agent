@@ -173,13 +173,27 @@ class TestPhase3Integration:
             content="Expired evidence",
         )
         
-        evidence_set = EvidenceSet(
-            invoice_id="INV-TEST-004",
-            vendor_id="V-0001",
-            exception_codes=["AMOUNT_MISMATCH"],
-            query="test",
-            validated_evidence=[validated_invalid],
-        )
+        evidence_set = create_test_evidence_set()
+        evidence_set.invoice_id = "INV-TEST-004"
+        evidence_set.validated_evidence.append(validated_invalid)
+
+        class CapturingLLMProvider:
+            def __init__(self):
+                self.evidence_ids = None
+
+            def investigate(self, exception_report, evidence_summaries, current_state, budget_remaining):
+                self.evidence_ids = [item["evidence_id"] for item in evidence_summaries]
+                return InvestigationFindings(
+                    findings="Evidence reviewed",
+                    evidence_ids=["EV-00001", "EV-INVALID-001"],
+                    proposed_outcome="ESCALATE",
+                    confidence=1.0,
+                )
+
+            def get_provider_name(self):
+                return "test-capture"
+
+        llm_provider = CapturingLLMProvider()
         
         result = run_investigation(
             exception_report=ExceptionReport(
@@ -190,9 +204,11 @@ class TestPhase3Integration:
             ),
             evidence_set=evidence_set,
             budget_limit=3,
+            llm_provider=llm_provider,
         )
-        
-        # Invalid evidence should not be used
+
+        assert llm_provider.evidence_ids == ["EV-00001"]
+        assert result.evidence_ids == ["EV-00001"]
         assert result.budget_used > 0
     
     def test_no_action_executed(self):

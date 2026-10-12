@@ -160,6 +160,8 @@ class BoundedInvestigationAgent:
         """Prepare evidence summaries for LLM consumption."""
         summaries = []
         for ev in self.context.evidence_set.validated_evidence:
+            if ev.validity_status != ValidityStatus.VALID:
+                continue
             summaries.append({
                 "evidence_id": ev.evidence.evidence_id,
                 "evidence_type": ev.evidence.evidence_type.value,
@@ -190,7 +192,8 @@ class BoundedInvestigationAgent:
         """Validate that evidence IDs exist in the EvidenceSet."""
         valid_ids = set()
         for ev in self.context.evidence_set.validated_evidence:
-            valid_ids.add(ev.evidence.evidence_id)
+            if ev.validity_status == ValidityStatus.VALID:
+                valid_ids.add(ev.evidence.evidence_id)
         
         validated = []
         for eid in evidence_ids:
