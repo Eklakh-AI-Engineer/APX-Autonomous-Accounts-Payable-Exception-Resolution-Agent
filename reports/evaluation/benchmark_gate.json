@@ -1,6 +1,10 @@
 {
   "status": "BLOCKED",
-  "reason": "No fresh benchmark execution was possible in the supplied environment; the latest committed historical benchmark failed its recorded gates.",
+  "reason": "Fresh deterministic DEV benchmark on candidate 97c24cd passed its narrow configured gates, but quality acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance/mappings, and unmeasured extraction.",
+  "candidate_commit": "97c24cd2f193813a936c38ea2e08f20d61e19582",
+  "ci_run": "38211575065",
+  "fresh_result": "benchmark_dev_20261012_062054.json",
+  "fresh_run_status": "configured_gates_passed_quality_acceptance_blocked",
   "historical_result": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
   "fresh_run_required": true,
   "required_checks": [
@@ -8,6 +12,8 @@
     "Run deterministic DEV benchmark with seed 42 and pinned reference date",
     "Review all layer metrics and denominators, including approval and blocked-action correctness",
     "Compare against predeclared thresholds without changing labels or thresholds to force a pass",
-    "Retain command, exit status, commit SHA, and output artifact"
+    "Retain command, exit status, commit SHA, and output artifact",
+    "Obtain independent human-review provenance and invoice/job mappings",
+    "Review low decision/action/approval/evidence-validity measures; do not infer acceptance from the narrow command exit"
   ]
 }

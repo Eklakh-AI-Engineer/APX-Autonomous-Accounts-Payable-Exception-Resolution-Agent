@@ -1,10 +1,10 @@
 # Release candidate audit — release blocked
 
-Audit date: 2026-10-12. Candidate branch: `codex/v1-release-audit`. Implementation tested at `82112a237fcb6bb8bb6a3cc4fb7f89e14386e1a7`; audit docs updated in a descendant commit. Base: `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`.
+Audit date: 2026-10-12. Candidate branch: `codex/v1-release-audit`. Code candidate: `97c24cd2f193813a936c38ea2e08f20d61e19582` (CI run `38211575065` passed). Previous release audit base: `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`.
 
 ## Decision
 
-**IMPLEMENTATION_INCOMPLETE / RELEASE_BLOCKED.** The candidate binds API requester and approver subjects to configured credentials, stores approval fingerprints and lifecycle fields, checks the binding at executor entry, removes profile-based DEV auto-approval, and fails closed for non-dry-run execution because a durable dispatch/reconciliation protocol is not configured. The invoice-processing regression is fixed and CI run `38208777459` passed the isolated repro, API module, related focused modules, full backend suite, benchmark command, and configured Ruff job. Durable action claims/recovery, benchmark integrity/quality acceptance, ERP sandbox, deployment, alert delivery, and backup/restore remain unverified or blocked. Do not merge or tag `v1.0.0`.
+**IMPLEMENTATION_INCOMPLETE / RELEASE_BLOCKED.** Candidate `97c24cd` adds durable action intent, atomic approval-bound leases and attempts, payload integrity checking, expiry/revocation checks, stale-lease `OUTCOME_UNKNOWN`, explicit reconciliation, durable retry/DLQ state, and an admin-only audited revocation endpoint. Non-dry-run execution remains disabled. CI run `38211575065` passed: repro 1 passed; API 61 passed/1 skipped; related modules 130 passed; full suite 415 passed/1 skipped; configured benchmark and Ruff passed. The fresh DEV benchmark passes only its narrow configured gates; action accuracy 49.60%, approval accuracy 1.60%, guardrail accuracy 58%, decision accuracy 62.20%, and evidence validity 57.67% leave quality acceptance blocked. Dataset hashes and ID/reference integrity validate, but reviewer provenance and invoice/job mappings are absent; extraction is not measured. ERP sandbox, deployment, actual alert delivery, restore evidence, and required E2E remain blocked or unavailable. Keep PR #4 draft; do not merge or tag `v1.0.0`.
 
 ## Verified evidence and limits
 
@@ -20,6 +20,10 @@ Audit date: 2026-10-12. Candidate branch: `codex/v1-release-audit`. Implementati
 - Earlier CI runs `38206301164` and `38207055833` failed on invoice processing before diagnostic logging was added. The failure was root-caused and fixed; run `38208777459` passes the complete backend suite and configured checks as recorded above.
 - `reports/evaluation/benchmark_gate.json` still records the 2026-08-19 historical benchmark as failed and requires a fresh run. No benchmark labels or thresholds were changed in this continuation.
 - No authorized ERP sandbox, deployment target, external monitoring receiver, or backup target was available. No deployment, financial side effect, merge, or release tag was performed.
+- New code candidate `97c24cd2f193813a936c38ea2e08f20d61e19582`: durable intent is written by invoice processing before the execution path; repository claims are fenced by lease tokens and recomputed payload/approval bindings. Expired leases are made uncertain, never automatically retried. An authoritative reconciliation result is required before `RETRY_WAIT`; a downstream transaction reference is retained when found. Default executor behavior still blocks live non-dry-run dispatch.
+- Focused new tests are in `apx/tests/test_durable_action_dispatch.py`; candidate CI #68 passed with the full backend suite **415 passed, 1 skipped**. Local syntax compilation and focused Ruff E4/E7/E9 passed. `git diff --check` passed.
+- Fresh benchmark artifact `benchmark_dev_20261012_062054.json` (CI #68, 500 invoices, seed 42, reference date 2026-08-29) reports configured-gate pass, but weak action/approval/guardrail/decision/evidence-validity measures. Extraction is explicitly not measured. The gate implementation does not enforce those weak quality measures, so the release gate remains blocked; no labels or thresholds were changed.
+- Dataset and evidence corpus SHA-256 values exactly match the manifest. Structural check: 10 unique eval IDs, 235 unique evidence IDs, no duplicate IDs, and no missing evidence references. These facts do not validate human review, labels, or invoice/job mapping; the benchmark gate remains blocked.
 
 ## Gate disposition
 
@@ -28,8 +32,8 @@ Audit date: 2026-10-12. Candidate branch: `codex/v1-release-audit`. Implementati
 | 1 — supported runtime | PASS (hosted) | Hosted Python 3.11.17 runner installed declared dev dependencies; complete backend suite passed (406 passed, 1 skipped). Local Python launch remains unavailable and WSL returns `E_ACCESSDENIED`. |
 | 2 — approval boundary | INCOMPLETE | Identity, policy binding, expiry, atomic resolution, and fail-closed paths are present; API/action/persistence tests pass. Revocation operation, legacy migration verification, and concurrent dispatch verification remain absent. |
 | 3 — durable execution/recovery | BLOCKED | Production dispatch fails closed. Action ledger is not wired to dispatch; no durable retries, DLQ, downstream reference, or timeout reconciliation protocol. |
-| 4 — benchmark integrity/quality | BLOCKED | Historical report fails; no fresh frozen benchmark execution or verified master scoreboard. |
-| 5 — complete verification/operations | BLOCKED | Backend suite and CI benchmark command passed. ERP sandbox, deploy/smoke, alert delivery, isolated restore, and additional configured type/security/E2E scans remain unavailable or unverified. |
+| 4 — benchmark integrity/quality | BLOCKED | Fresh DEV benchmark and master scoreboard recorded; configured gates pass, but decision/action/approval/evidence quality is weak and frozen human-review provenance/mappings are missing. |
+| 5 — complete verification/operations | BLOCKED | Backend suite and configured Ruff/benchmark passed. ERP sandbox, deploy/smoke, alert delivery, isolated restore, and E2E remain unavailable; no separate type/dependency-security job is configured. |
 | 6 — final release | BLOCKED | Required evidence is incomplete. Preserve candidate; do not merge or tag. |
 
 See [implementation gap matrix](IMPLEMENTATION_GAP_MATRIX.md), [benchmark gate](../../reports/evaluation/benchmark_gate.json), and [release checklist](../release/RELEASE_CHECKLIST.md).

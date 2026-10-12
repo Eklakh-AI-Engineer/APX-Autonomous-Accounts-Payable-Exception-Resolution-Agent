@@ -164,6 +164,20 @@ def test_persisted_payload_tampering_fails_closed(clean_db):
     )
 
 
+def test_expired_approval_fails_closed_at_claim(clean_db):
+    plan, action_id, fp, evidence, policy = _approved_action()
+    from apx.persistence.database import session_scope
+    from apx.persistence.models import ApprovalORM
+
+    with session_scope() as session:
+        approval = session.get(ApprovalORM, UUID(plan.metadata["approval_id"]))
+        approval.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    assert not SQLiteActionRepository().claim_for_dispatch(
+        action_id, claim_token="worker", lease_seconds=60,
+        action_fingerprint=fp, evidence_digest=evidence, policy_fingerprint=policy,
+    )
+
+
 def test_repeated_creation_returns_same_logical_action(clean_db):
     plan, action_id, _, _, _ = _approved_action()
     repeated = plan.model_copy(deep=True)
