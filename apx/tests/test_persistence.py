@@ -667,7 +667,7 @@ class TestApprovalRepository:
         repo = SQLiteApprovalRepository()
         case_repo = SQLiteCaseRepository()
         case_id = uuid4()
-        case_repo.create(case_id, "INV-RESOLVE-001", "V-0001")
+        case_repo.create(case_id, persisted_invoice.invoice_id, "V-0001")
         from apx.action.models import ApprovalRequest, ApprovalStatus
 
         approval_id = repo.create(ApprovalRequest(
