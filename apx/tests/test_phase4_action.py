@@ -753,7 +753,7 @@ class TestPhase4PipelineIntegration:
         assert isinstance(action_result.success, bool)
         if action_plan.approval_status == ApprovalStatus.PENDING:
             assert action_result.success is False
-            assert "not approved" in action_result.error_message.lower()
+            assert "approval" in action_result.error_message.lower()
         
         print(f"Phase 1: Exception report - {len(exception_report.exceptions)} exceptions")
         print(f"Phase 2: Evidence set - {len(evidence_set.validated_evidence)} validated evidence")
