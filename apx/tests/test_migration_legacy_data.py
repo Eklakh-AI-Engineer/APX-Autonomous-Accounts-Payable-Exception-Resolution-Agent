@@ -37,10 +37,19 @@ def test_durable_dispatch_migration_preserves_legacy_records(tmp_path):
                 'NEW', '[]', '[]', '[]')
         """))
         connection.execute(text("""
-            INSERT INTO actions (action_id, case_id, action_type, target, parameters_json,
-                guardrail_checks, status)
+            INSERT INTO approvals (approval_id, case_id, action_type, risk_level, status,
+                required_approvers, approvals_json, requested_by, resolved_by)
+            VALUES ('00000000-0000-0000-0000-000000000003',
+                '00000000-0000-0000-0000-000000000001', 'MANUAL_REVIEW', 'MEDIUM',
+                'APPROVED', '["finance"]', '{"finance":"reviewer-1"}',
+                'requester-1', 'reviewer-1')
+        """))
+        connection.execute(text("""
+            INSERT INTO actions (action_id, case_id, approval_id, action_type, target,
+                parameters_json, guardrail_checks, status)
             VALUES ('00000000-0000-0000-0000-000000000002',
-                '00000000-0000-0000-0000-000000000001', 'MANUAL_REVIEW', 'INV-LEGACY',
+                '00000000-0000-0000-0000-000000000001',
+                '00000000-0000-0000-0000-000000000003', 'MANUAL_REVIEW', 'INV-LEGACY',
                 '{}', '[]', 'PENDING')
         """))
 
@@ -56,6 +65,19 @@ def test_durable_dispatch_migration_preserves_legacy_records(tmp_path):
         )).one()
         assert tuple(legacy_action) == ("PENDING", "", 0)
         assert connection.execute(text("SELECT count(*) FROM action_attempts")).scalar_one() == 0
+        legacy_approval = connection.execute(text("""
+            SELECT status, requested_by, resolved_by, action_fingerprint,
+                evidence_digest, policy_fingerprint, expires_at, revoked_at
+            FROM approvals
+            WHERE approval_id='00000000-0000-0000-0000-000000000003'
+        """)).one()
+        assert tuple(legacy_approval) == (
+            "APPROVED", "requester-1", "reviewer-1", "", "", "", None, None
+        )
+        assert connection.execute(text(
+            "SELECT approval_id FROM actions "
+            "WHERE action_id='00000000-0000-0000-0000-000000000002'"
+        )).scalar_one() == "00000000-0000-0000-0000-000000000003"
 
         columns = {col["name"] for col in inspect(connection).get_columns("actions")}
         assert {"action_fingerprint", "claim_token", "lease_expires_at",
