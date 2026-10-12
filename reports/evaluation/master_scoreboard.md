@@ -1,6 +1,6 @@
 # Master scoreboard
 
-**Status: current DEV run passed its narrow implemented gates; release quality acceptance remains blocked.** Candidate `9179840cd029120e4d019ad421b91a1a5ea25d39` passed push CI #91 (`38228330768`) and PR CI #92 (`38228335549`): API 61 passed, 1 skipped; full suite 423 passed, 1 skipped; configured Ruff passed. Fresh output `benchmark_dev_20261012_091921.json`, DEV, seed 42, effective pinned reference date 2026-08-29, 500 synthetic structured invoices. Artifact: [CI benchmark evidence](https://github.com/Eklakh-AI-Engineer/APX-Autonomous-Accounts-Payable-Exception-Resolution-Agent/actions/runs/38228330768/artifacts/11738111338).
+**Status: current DEV run passed its narrow implemented gates; release quality acceptance remains blocked.** Latest branch head `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` passed CI #94 (`38229883761`): API 61 passed, 1 skipped; full suite 423 passed, 1 skipped; configured Ruff passed; deterministic benchmark completed. Benchmark code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39` passed push CI #91 (`38228330768`) and PR CI #92 (`38228335549`). Fresh benchmark output `benchmark_dev_20261012_091921.json`, DEV, seed 42, effective pinned reference date 2026-08-29, 500 synthetic structured invoices. Artifact: [CI benchmark evidence](https://github.com/Eklakh-AI-Engineer/APX-Autonomous-Accounts-Payable-Exception-Resolution-Agent/actions/runs/38228330768/artifacts/11738111338).
 
 | Current candidate measure | Result | Acceptance interpretation |
 |---|---:|---|
