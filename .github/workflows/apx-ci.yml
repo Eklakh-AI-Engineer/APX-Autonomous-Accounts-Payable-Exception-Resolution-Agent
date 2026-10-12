@@ -47,13 +47,15 @@ jobs:
         run: python -m apx.data.generate_synthetic --seed 42
       - name: Run focused observability and security regressions
         run: |
+          mkdir -p artifacts
+          set -o pipefail
           python -m pytest \
             apx/tests/test_api.py \
             apx/tests/test_tracing.py \
             apx/tests/test_persistence.py \
             apx/tests/test_phase4_guardrail.py \
             apx/tests/test_phase4_action.py \
-            apx/tests/test_security_redaction.py -q
+            apx/tests/test_security_redaction.py -q --tb=short 2>&1 | tee artifacts/focused-tests.log
       - name: Run complete test suite
         run: |
           mkdir -p artifacts
@@ -73,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apx-test-results
-          path: artifacts/junit.xml
+          path: artifacts/
           if-no-files-found: ignore
           retention-days: 14
 
