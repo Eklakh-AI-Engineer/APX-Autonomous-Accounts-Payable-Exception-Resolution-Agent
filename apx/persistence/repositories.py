@@ -169,6 +169,10 @@ class ApprovalRepository(ABC):
         """Atomically transition a pending approval to a terminal decision."""
 
     @abstractmethod
+    def revoke(self, approval_id: UUID, actor_id: str, notes: Optional[str] = None) -> bool:
+        """Atomically revoke a pending or approved authorization."""
+
+    @abstractmethod
     def list_pending(self, limit: int = 100, offset: int = 0) -> List[ApprovalRequest]:
         """List pending approvals."""
 

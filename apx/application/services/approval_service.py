@@ -141,7 +141,10 @@ class ApprovalService:
             component="approval_service", payload={"approval_id": approval.approval_id, "notes": notes},
             user_id=actor_id,
         )
-        return self.get_approval(case_id)
+        result = self.get_approval(case_id)
+        if result is None:
+            raise RuntimeError("Revoked approval could not be reloaded")
+        return result
 
     def get_approval(self, case_id: str) -> Optional[dict[str, Any]]:
         """Get approval for a case."""
