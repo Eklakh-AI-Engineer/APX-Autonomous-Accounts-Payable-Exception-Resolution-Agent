@@ -44,3 +44,10 @@ The current benchmark reports `passed: true` because its implemented gates cover
 ## Current candidate integrity and gate status
 
 Tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39` (push run `38228330768` and PR run `38228335549` passed): eval data SHA-256 `177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd`; evidence corpus SHA-256 `09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86`. Structural inspection found 10 unique evaluation IDs, 235 unique evidence IDs, no duplicate IDs, and no missing references. The available schema has no reviewer/adjudication provenance or invoice/job mappings; this is integrity evidence only. Human-reviewed acceptance remains blocked.
+
+## Latest evidence-chain update
+
+- Latest branch head after audit/scoreboard reconciliation: `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (documentation/evidence commit).
+- Latest-head CI run #94 (`38229883761`) passed: API suite 61 passed/1 skipped; full suite 423 passed/1 skipped; configured Ruff passed; deterministic benchmark completed.
+- Benchmark metrics and per-case comparison remain from tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, benchmark run #91 (`38228330768`), artifact `benchmark_dev_20261012_091921.json`. They are not attributed to the documentation commit.
+- Release remains `BLOCKED`; the PR stays draft/unmerged and live financial dispatch stays disabled.
