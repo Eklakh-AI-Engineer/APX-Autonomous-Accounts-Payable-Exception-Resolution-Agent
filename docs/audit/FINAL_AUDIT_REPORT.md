@@ -1,24 +1,33 @@
-# Final audit report — release blocked
+# Release candidate audit — release blocked
 
-Audit date: 2026-10-12. Branch: `codex/v1-release-audit`. Base commit: `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`.
+Audit date: 2026-10-12. Candidate branch: `codex/v1-release-audit`. Candidate commit at audit: `eade05999b170687f82027caa3e6033b671cdec3`. Base: `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`.
 
 ## Decision
 
-**IMPLEMENTATION_INCOMPLETE / RELEASE_BLOCKED.** This work removes implicit DEV-profile auto-approval, binds approval API actor identity to configured approver API keys, and enforces configured approver eligibility. P0 approval binding and execution-authorization risks remain, and the required runtime, ERP, deployment, monitoring, and restore evidence is not established. No `v1.0.0` tag was created.
+**IMPLEMENTATION_INCOMPLETE / RELEASE_BLOCKED.** The candidate now binds API requester and approver subjects to configured credentials, stores approval fingerprints and lifecycle fields, checks the binding at executor entry, removes profile-based DEV auto-approval, and fails closed for non-dry-run execution because a durable dispatch/reconciliation protocol is not configured. These source changes have not yet passed CI on this final candidate. Durable action claims/recovery, benchmark quality, ERP sandbox, deployment, alert delivery, and backup/restore remain unverified or blocked. Do not merge or tag `v1.0.0`.
 
-## Evidence
+## Verified evidence and limits
 
-- Source review found caller-supplied `approver_id` was used by the API; the route now ignores it and derives the subject from a configured approver API key. `ApprovalService` now checks required approvers and rejects a match with recorded `requested_by`.
-- Approval creation still records `system` as requester, approval is not bound to action parameters/evidence/policy, and executor dispatch does not verify a durable approval. These remain P0 gaps.
-- The DEV-profile implicit auto-approval path was removed; its regression test was updated. Runtime verification remains blocked.
-- Executor defaults to mock adapters, and its dead-letter queue is process-local.
-- The latest committed benchmark artifact is dated 2026-08-19 and reports `passed: false`: extraction F1 1.00 (synthetic structured-input measure), detection F1 0.2659, retrieval Recall@5 0.60, evidence-validity rate 0.03, business decision accuracy 0.274, automation 0.024, unauthorized rate 0.00 in that simulated run. This is historical artifact evidence, not a fresh evaluation.
-- Test command attempted: `python -m pytest apx/tests -q`. Result: unable to start the WSL-created `.venv` interpreter in Windows (`Access is denied`); desktop-bundled Python has no pytest installed. No tests are claimed as passing in this audit.
-- The repository workflow defines tests and a DEV benchmark, but no run result is available in the local evidence.
-- No ERP sandbox, deployment endpoint, alert receiver, or backup/restore target/evidence exists in the inspected checkout.
+- Existing candidate history is preserved: `26f1079` and `723c3e5`; follow-up implementation commits are `110e901` and `eade059`.
+- `process_invoice` requires an authenticated requester and uses it for approval/audit records. Approval routes ignore body-supplied approver identity; configured approver identity/group is taken from authentication middleware.
+- Approval rows now carry action/evidence/policy fingerprints and expiration/revocation fields. `ApprovalService` checks expiry, revocation, role eligibility, and separation of duties. SQLite resolution uses one conditional terminal transition. The executor verifies the persisted binding for approved actions.
+- Real execution is rejected before adapter dispatch while durable action ledger and unknown-outcome reconciliation are absent. Default adapters remain mocks. This is a safety block, not proof that a production dispatch protocol works.
+- Python 3.12.10 and declared development dependencies were installed in an isolated `.venv-py312`; `pip check` reported no broken requirements. Interpreter imports fail because Windows Application Control blocks scikit-learn's native `_check_build` module, including in an isolated temp environment. WSL remains inaccessible with `E_ACCESSDENIED`.
+- Earlier focused pytest invocation produced `3 failed, 184 passed, 1 skipped` and two teardown errors (SQLite file `WinError 32`). The failures included the invoice API processing test and two phase 4 integration tests. Subsequent rerun could not load pytest configuration because of the blocked scikit-learn native extension. Those results predate the final two candidate commits and are not a passing verification.
+- Ruff was invoked across the whole repository and reported 1,419 findings, mostly pre-existing repository-wide lint issues; the configured CI lint job is narrower. The command did not establish lint cleanliness.
+- CI run 51 for `110e901` was cancelled when the newer run started; its configured Ruff job completed successfully, but its full test job was cancelled. CI run 52 for `eade059` failed in “Run focused observability and security regressions” with exit code 1; the complete suite and benchmark were skipped. The public job page did not expose test output, and the GitHub REST API was rate-limited. Therefore CI does not pass on the final candidate.
+- `reports/evaluation/benchmark_gate.json` still records the 2026-08-19 historical benchmark as failed and requires a fresh run. No benchmark labels or thresholds were changed in this continuation.
+- No authorized ERP sandbox, deployment target, external monitoring receiver, or backup target was available. No deployment, financial side effect, merge, or release tag was performed.
 
-## Source state
+## Gate disposition
 
-Starting user checkout: `172598db54c47c31a0c84dfa1793ae052823693d`, clean on `main`, behind remote main by 32 commits. Work was based on the existing local `origin/main` commit `0b6f30ed3a45db3f277cfe4179758d90a8aa593b` on branch `codex/v1-release-audit`. No commit was made; worktree contains audit deliverables. No remote changes, deployments, financial actions, or tags were made.
+| Gate | Status | Evidence / remaining work |
+|---|---|---|
+| 1 — supported runtime | BLOCKED | Python 3.12 installed; native scikit-learn load denied by host policy; final candidate's focused CI tests failed. |
+| 2 — approval boundary | INCOMPLETE | Identity and binding source changes present; focused CI failed; migration/runtime/concurrency verification absent; there is no revocation operation. |
+| 3 — durable execution/recovery | BLOCKED | Production dispatch fails closed. Action ledger is not wired to dispatch; no durable retries, DLQ, downstream reference, or timeout reconciliation protocol. |
+| 4 — benchmark integrity/quality | BLOCKED | Historical report fails; no fresh frozen benchmark execution or verified master scoreboard. |
+| 5 — complete verification/operations | BLOCKED | Focused CI failed; full suite and benchmark were skipped; ERP sandbox, deploy/smoke, alert delivery, and isolated restore unavailable. |
+| 6 — final release | BLOCKED | Required evidence is incomplete. Preserve candidate; do not merge or tag. |
 
-The gap matrix is the authoritative status register. A source-level observation or historical artifact is not treated as runtime verification. Resolve every P0 item and blocked dependency, run supported CI and operational exercises, then request a fresh independent audit before release.
+See [implementation gap matrix](IMPLEMENTATION_GAP_MATRIX.md), [benchmark gate](../../reports/evaluation/benchmark_gate.json), and [release checklist](../release/RELEASE_CHECKLIST.md).

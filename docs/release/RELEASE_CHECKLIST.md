@@ -17,4 +17,4 @@
 - [ ] Threat model, operator docs, changelog, release notes and independent audit are current.
 - [ ] Confirm clean release commit, CI result, and absence of an existing `v1.0.0` tag before tagging.
 
-Current P0 issues, failed historical benchmark gates, unavailable test runtime and missing external evidence preclude release. No tag was created.
+Current approval/migration runtime verification, durable dispatch/recovery, failed historical benchmark gates, and missing ERP/deployment/monitoring/restore evidence preclude release. CI on the final candidate failed its focused regression step; full tests and benchmark were skipped. No merge or `v1.0.0` tag was created. See [candidate audit](../audit/FINAL_AUDIT_REPORT.md) and [gap matrix](../audit/IMPLEMENTATION_GAP_MATRIX.md) for exact evidence and prerequisites.
