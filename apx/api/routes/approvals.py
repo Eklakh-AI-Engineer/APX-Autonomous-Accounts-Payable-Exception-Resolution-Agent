@@ -8,7 +8,7 @@ import logging
 
 from apx.api.schemas import ApprovalResponse, ApproveRequest, RejectRequest, ErrorResponse
 from apx.application.services import get_approval_service
-from apx.api.middleware import get_current_role, get_request_id
+from apx.api.middleware import get_current_user_id
 
 router = APIRouter()
 
@@ -55,10 +55,13 @@ async def approve_case(
     approve_request: ApproveRequest,
 ):
     """Approve a case."""
+    approver_id = get_current_user_id(request)
+    if not approver_id:
+        raise HTTPException(status_code=403, detail="Authenticated approver identity is required")
     service = get_approval_service()
-    logger.info(f"Approving case: {case_id}, type: {type(case_id)}")
+    logger.info("Approving case: %s", case_id)
     try:
-        result = service.approve_case(case_id, approve_request.approver_id, approve_request.notes)
+        result = service.approve_case(case_id, approver_id, approve_request.notes)
         return ApprovalResponse(**result)
     except ValueError as e:
         raise HTTPException(
@@ -83,9 +86,12 @@ async def reject_case(
     reject_request: RejectRequest,
 ):
     """Reject a case."""
+    approver_id = get_current_user_id(request)
+    if not approver_id:
+        raise HTTPException(status_code=403, detail="Authenticated approver identity is required")
     service = get_approval_service()
     try:
-        result = service.reject_case(case_id, reject_request.approver_id, reject_request.notes)
+        result = service.reject_case(case_id, approver_id, reject_request.notes)
         return ApprovalResponse(**result)
     except ValueError as e:
         raise HTTPException(

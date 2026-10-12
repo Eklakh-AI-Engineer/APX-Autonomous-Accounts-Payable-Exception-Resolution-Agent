@@ -329,11 +329,14 @@ class TestApprovalEndpoints:
         response = client.post(
             f"/cases/{case_id}/approve",
             headers=approver_headers,
-            json={"approver_id": "approver1", "notes": "Approved"}
+            json={"approver_id": "attacker-supplied", "notes": "Approved"}
         )
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "APPROVED"
+        # The request-body approver_id is untrusted; identity comes from the
+        # authenticated API key's configured subject binding.
+        assert "approver1" in data["approvals"]
 
     def test_reject_case(self, client, operator_headers, approver_headers):
         """Test rejecting a case."""

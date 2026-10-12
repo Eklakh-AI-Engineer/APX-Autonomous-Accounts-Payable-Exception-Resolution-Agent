@@ -89,17 +89,9 @@ class Phase4Pipeline:
         
         # Step 5: Handle approval if required
         if action_plan.approval_status == "PENDING":
-            # In production, this would trigger human approval workflow
-            # For now, we simulate based on configuration
-            from apx.config.settings import get_settings
-            settings = get_settings()
-            agent_settings = settings.get_agent_settings()
-            
-            # In DEV mode with mock, auto-approve for testing
-            if settings.retrieval.defaults.get("active_profile") == "DEV":
-                action_plan.approval_status = "APPROVED"
-                action_plan.approval_resolved_at = datetime.utcnow()
-                action_plan.status = ActionStatus.APPROVED
+            # A retrieval profile is not an authorization signal. Keep the
+            # action pending until the persisted human approval workflow acts.
+            action_plan.status = ActionStatus.PENDING
         else:
             # No approval required - transition to APPROVED status for execution
             action_plan.status = ActionStatus.APPROVED

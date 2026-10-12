@@ -32,11 +32,20 @@ class APIAuthSettings(BaseSettings):
         for item in self.api_keys.split(","):
             item = item.strip()
             if ":" in item:
-                key, role = item.split(":", 1)
+                key, role, *_ = item.split(":", 2)
                 result[key.strip()] = role.strip()
             else:
                 # Default to reader if no role specified
                 result[item] = "reader"
+        return result
+
+    def get_keys_with_subjects(self) -> dict[str, str]:
+        """Return explicitly configured API-key to human-subject bindings."""
+        result = {}
+        for item in self.api_keys.split(","):
+            parts = [part.strip() for part in item.split(":", 2)]
+            if len(parts) == 3 and parts[0] and parts[1] == "approver" and parts[2]:
+                result[parts[0]] = parts[2]
         return result
 
 

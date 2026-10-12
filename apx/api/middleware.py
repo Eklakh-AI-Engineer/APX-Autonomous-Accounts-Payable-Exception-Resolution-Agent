@@ -541,6 +541,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         role = valid_keys[api_key]
         request.state.api_key = api_key
         request.state.role = role
+        request.state.user_id = get_api_settings().auth.get_keys_with_subjects().get(api_key)
 
         return await call_next(request)
 
@@ -644,3 +645,8 @@ def get_current_role(request: Request) -> str:
 def get_current_api_key(request: Request) -> Optional[str]:
     """Get the current user's API key from request state."""
     return getattr(request.state, "api_key", None)
+
+
+def get_current_user_id(request: Request) -> Optional[str]:
+    """Return the subject explicitly bound to the authenticated API key."""
+    return getattr(request.state, "user_id", None)

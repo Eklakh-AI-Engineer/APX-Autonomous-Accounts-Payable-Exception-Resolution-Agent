@@ -509,8 +509,8 @@ class TestPhase4Pipeline:
         if action_plan.approval_status == ApprovalStatus.NOT_REQUIRED:
             assert action_plan.status == ActionStatus.APPROVED
 
-    def test_process_dev_mode_auto_approve(self):
-        """Test DEV mode auto-approves pending actions."""
+    def test_process_dev_mode_does_not_auto_approve(self):
+        """A DEV retrieval profile must not authorize a pending action."""
         pipeline = Phase4Pipeline()
         investigation_result = create_test_investigation(outcome="ESCALATE")
         exception_report = create_test_exception_report()
@@ -521,8 +521,7 @@ class TestPhase4Pipeline:
         )
         
         if action_plan.approval_status == ApprovalStatus.PENDING:
-            assert action_plan.approval_status == ApprovalStatus.APPROVED
-            assert action_plan.status == ActionStatus.APPROVED
+            assert action_plan.status == ActionStatus.PENDING
 
     def test_execute_action(self):
         """Test execute_action delegates to executor."""

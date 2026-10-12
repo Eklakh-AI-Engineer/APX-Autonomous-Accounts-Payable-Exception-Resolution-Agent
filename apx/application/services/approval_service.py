@@ -35,6 +35,11 @@ class ApprovalService:
         if approval.status != ApprovalStatus.PENDING:
             raise ValueError(f"Approval is not pending: {approval.status}")
 
+        if approver_id not in (approval.required_approvers or []):
+            raise ValueError("Approver is not authorized for this approval")
+        if approver_id == approval.requested_by:
+            raise ValueError("Requester cannot approve their own request")
+
         # Record approval
         self.approval_repo.add_approval(UUID(approval.approval_id), approver_id, True, notes)
 
@@ -75,6 +80,11 @@ class ApprovalService:
 
         if approval.status != ApprovalStatus.PENDING:
             raise ValueError(f"Approval is not pending: {approval.status}")
+
+        if approver_id not in (approval.required_approvers or []):
+            raise ValueError("Approver is not authorized for this approval")
+        if approver_id == approval.requested_by:
+            raise ValueError("Requester cannot reject their own request")
 
         # Record rejection
         self.approval_repo.add_approval(UUID(approval.approval_id), approver_id, False, notes)
