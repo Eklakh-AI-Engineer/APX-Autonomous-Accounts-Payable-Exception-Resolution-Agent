@@ -270,7 +270,8 @@ class DecisionEvaluator:
 
             if inv_result:
                 om = self.evaluate_investigation_outcome(inv_result, gt)
-                all_outcome.total_cases += om.total_cases
+                if gt.expected_decision is not None:
+                    all_outcome.total_cases += om.total_cases
                 all_outcome.correct_decisions += om.correct_decisions
                 all_outcome.resolve_tp += om.resolve_tp
                 all_outcome.resolve_fp += om.resolve_fp
@@ -284,13 +285,15 @@ class DecisionEvaluator:
 
             if risk_assess:
                 rm = self.evaluate_risk_classification(risk_assess, gt)
-                all_risk.total_cases += rm.total_cases
+                if gt.expected_decision in self._EXPECTED_RISK_MAP:
+                    all_risk.total_cases += rm.total_cases
                 all_risk.risk_correct += rm.risk_correct
 
             if guardrail and inv_result:
-                em = self.evaluate_escalation(guardrail, inv_result, gt)
-                all_escalation.total_cases += em.total_cases
-                all_escalation.escalation_correct += em.escalation_correct
+                if gt.expected_decision in self._DECISION_MAP:
+                    em = self.evaluate_escalation(guardrail, inv_result, gt)
+                    all_escalation.total_cases += em.total_cases
+                    all_escalation.escalation_correct += em.escalation_correct
 
             expected_raw = gt.expected_decision
             expected_outcome = self._DECISION_MAP.get(expected_raw) if isinstance(expected_raw, str) else expected_raw
@@ -298,11 +301,11 @@ class DecisionEvaluator:
             expected_risk = self._EXPECTED_RISK_MAP.get(expected_raw) if isinstance(expected_raw, str) else None
             actual_risk = risk_assess.risk_level if risk_assess else None
             errors = []
-            if inv_result and actual_outcome != expected_outcome:
+            if inv_result and expected_outcome is not None and actual_outcome != expected_outcome:
                 errors.append("decision_mismatch")
             if risk_assess and expected_risk is not None and actual_risk != expected_risk:
                 errors.append("risk_mismatch")
-            if guardrail and inv_result and em.escalation_correct != 1:
+            if guardrail and inv_result and gt.expected_decision in self._DECISION_MAP and em.escalation_correct != 1:
                 errors.append("escalation_mismatch")
 
             per_case.append({
@@ -313,9 +316,9 @@ class DecisionEvaluator:
                 "expected_risk": expected_risk.value if hasattr(expected_risk, "value") else expected_risk,
                 "actual_risk": actual_risk.value if hasattr(actual_risk, "value") else actual_risk,
                 "guardrail_decision": guardrail.decision.value if guardrail else None,
-                "outcome_correct": om.correct_decisions == 1 if inv_result else None,
-                "risk_correct": rm.risk_correct == 1 if risk_assess else None,
-                "escalation_correct": em.escalation_correct == 1 if guardrail and inv_result else None,
+                "outcome_correct": om.correct_decisions == 1 if inv_result and expected_outcome is not None else None,
+                "risk_correct": rm.risk_correct == 1 if risk_assess and expected_risk is not None else None,
+                "escalation_correct": em.escalation_correct == 1 if guardrail and inv_result and gt.expected_decision in self._DECISION_MAP else None,
                 "errors": errors,
             })
 

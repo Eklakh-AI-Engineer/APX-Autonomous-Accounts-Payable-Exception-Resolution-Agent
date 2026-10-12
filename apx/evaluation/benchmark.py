@@ -251,6 +251,7 @@ class BenchmarkOrchestrator:
 
         return self.retrieval_eval.evaluate_batch(evidence_sets, relevance_labels)
 
+
     def run_phase3_investigation(
         self,
         reports: List[ExceptionReport],
@@ -428,7 +429,7 @@ class BenchmarkOrchestrator:
 
         execution_time = time.time() - start_time
 
-        # Determine pass/fail
+        # Determine pass/fail using only the pre-existing configured gates.
         failure_reasons = []
         if detection.f1 < 0.85:
             failure_reasons.append(f"Detection F1 ({detection.f1:.2f}) below target 0.85")
@@ -514,7 +515,8 @@ class BenchmarkOrchestrator:
             f"  Guardrail Accuracy: {result.action.metrics.guardrail_accuracy:.2%} ({result.action.metrics.guardrail_correct}/{result.action.metrics.guardrail_decisions} cases; expected guardrail is inferred from action/risk mapping, not an independently adjudicated label)",
             f"  Unauthorized Action Rate: {result.action.metrics.unauthorized_action_rate:.2%}",
             f"  Approval Requirement Accuracy: {result.action.metrics.approval_accuracy:.2%} ({result.action.metrics.approvals_correct}/{result.action.metrics.approval_evaluation_cases} labeled cases; expected requirement is inferred from the benchmark action/risk mapping)",
-            f"  Blocked Decision Precision: {result.action.metrics.blocked_precision:.2%} ({result.action.metrics.blocked_correct}/{result.action.metrics.blocked_actions} predicted BLOCK cases)",
+            f"  Blocked Decision Precision: {result.action.metrics.blocked_precision:.2%} ({result.action.metrics.blocked_correct}/{result.action.metrics.blocked_predicted_positive} predicted BLOCK cases)",
+            f"  Blocked Decision Recall: {result.action.metrics.blocked_recall:.2%} ({result.action.metrics.blocked_correct}/{result.action.metrics.blocked_expected_positive} expected BLOCK cases)",
             "",
             "Layer 6 - Business Evaluation:",
             result.business.summary if result.business else "N/A",
@@ -531,9 +533,13 @@ class BenchmarkOrchestrator:
 
         if result.action and result.action.per_case:
             error_cases = [case for case in result.action.per_case if case.get("errors")]
+            execution_failures = [case for case in result.action.per_case if case.get("action_success") is False]
+            unlabeled_action_cases = [case for case in result.action.per_case if case.get("expected_action_type") is None]
             lines.extend([
                 "Per-case action error analysis (synthetic structured-input invoices):",
-                f"  Cases with one or more action/guardrail/approval errors: {len(error_cases)} / {len(result.action.per_case)}",
+                f"  Labeled cases with one or more action/guardrail/approval errors: {sum(bool(case.get('errors')) and case.get('expected_action_type') is not None for case in result.action.per_case)} / {result.action.metrics.action_evaluation_cases}",
+                f"  Action execution failures (all attempts): {len(execution_failures)} / {result.action.metrics.total_actions}",
+                f"  Cases without expected action labels (not applicable to labeled quality metrics): {len(unlabeled_action_cases)}",
             ])
             for case in error_cases:
                 lines.append(
@@ -548,9 +554,11 @@ class BenchmarkOrchestrator:
             ])
         if result.decision and result.decision.per_case:
             decision_errors = [case for case in result.decision.per_case if case.get("errors")]
+            unlabeled_decisions = [case for case in result.decision.per_case if case.get("expected_outcome") is None]
             lines.extend([
                 "Per-case decision error analysis:",
-                f"  Cases with one or more decision/risk/escalation errors: {len(decision_errors)} / {len(result.decision.per_case)}",
+                f"  Cases with one or more decision/risk/escalation errors: {len(decision_errors)} / {sum(case.get('expected_outcome') is not None or case.get('expected_risk') is not None for case in result.decision.per_case)} evaluable cases",
+                f"  Cases without supported expected-decision labels (not applicable): {len(unlabeled_decisions)}",
             ])
             for case in decision_errors:
                 lines.append(

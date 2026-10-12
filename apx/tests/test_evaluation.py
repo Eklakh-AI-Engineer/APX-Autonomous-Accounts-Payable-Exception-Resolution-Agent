@@ -451,6 +451,22 @@ class TestDecisionEvaluator:
         assert "decision_mismatch" in row["errors"]
         assert "risk_mismatch" in row["errors"]
 
+    def test_unlabeled_decision_is_not_scored_or_marked_as_error(self):
+        gt = GroundTruth(invoice_id="INV-NO-DECISION-LABEL")
+        result = DecisionEvaluator().evaluate_batch([{
+            "invoice_id": gt.invoice_id,
+            "investigation_result": _create_test_investigation_result(gt.invoice_id, TerminalOutcome.RESOLVE),
+            "risk_assessment": _create_test_risk_assessment(gt.invoice_id, RiskLevel.LOW),
+            "guardrail_result": _create_test_guardrail_result(GuardrailDecision.ALLOW),
+        }], [gt])
+        assert result.investigation_outcome_metrics.total_cases == 0
+        assert result.risk_classification_metrics.total_cases == 0
+        assert result.escalation_metrics.total_cases == 0
+        assert result.per_case[0]["outcome_correct"] is None
+        assert result.per_case[0]["risk_correct"] is None
+        assert result.per_case[0]["escalation_correct"] is None
+        assert result.per_case[0]["errors"] == []
+
 
 class TestActionEvaluator:
     """Tests for Layer 5 - Action Evaluation."""
@@ -530,7 +546,43 @@ class TestActionEvaluator:
         assert result.metrics.approval_evaluation_cases == 0
         assert result.metrics.action_accuracy == 0.0
         assert result.per_case[0]["action_type_correct"] is None
-        assert "missing_expected_action_label" in result.per_case[0]["errors"]
+        assert result.per_case[0]["label_status"] == "missing_expected_action_label"
+        assert result.per_case[0]["errors"] == []
+        assert "action_not_successful" not in result.per_case[0]["errors"]
+
+    def test_blocked_precision_uses_all_predicted_blocks(self):
+        evaluator = ActionEvaluator()
+        plans = [
+            _create_test_action_plan("INV-BLOCK-TRUE", ActionType.AUTO_RESOLVE),
+            _create_test_action_plan("INV-BLOCK-FALSE", ActionType.AUTO_RESOLVE),
+        ]
+        plans[0].risk_assessment = _create_test_risk_assessment("INV-BLOCK-TRUE", RiskLevel.HIGH)
+        truths = [
+            _create_test_ground_truth("INV-BLOCK-TRUE", [ExceptionCode.CREDIT_ISSUE]),
+            _create_test_ground_truth("INV-BLOCK-FALSE", [ExceptionCode.AMOUNT_MISMATCH]),
+        ]
+        results = evaluator.evaluate_batch(
+            plans,
+            [_create_test_action_result(False), _create_test_action_result(False)],
+            [_create_test_guardrail_result(GuardrailDecision.BLOCK)] * 2,
+            truths,
+        )
+        assert results.metrics.blocked_predicted_positive == 2
+        assert results.metrics.blocked_expected_positive == 1
+        assert results.metrics.blocked_correct == 1
+        assert results.metrics.blocked_precision == 0.5
+        assert results.metrics.blocked_recall == 1.0
+
+    def test_blocked_precision_excludes_unlabeled_cases(self):
+        result = ActionEvaluator().evaluate_batch(
+            [_create_test_action_plan("INV-BLOCK-NO-LABEL")],
+            [_create_test_action_result(False)],
+            [_create_test_guardrail_result(GuardrailDecision.BLOCK)],
+            [GroundTruth(invoice_id="INV-BLOCK-NO-LABEL")],
+        )
+        assert result.metrics.blocked_actions == 1
+        assert result.metrics.blocked_predicted_positive == 0
+        assert result.metrics.blocked_precision == 0.0
 
 
 class TestBusinessEvaluator:

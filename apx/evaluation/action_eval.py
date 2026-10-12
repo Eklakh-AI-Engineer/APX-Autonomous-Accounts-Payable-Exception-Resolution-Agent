@@ -39,8 +39,11 @@ class ActionMetrics:
     # Blocked actions
     blocked_actions: int = 0
     blocked_correct: int = 0
+    blocked_expected_positive: int = 0
     blocked_accuracy: float = 0.0
     blocked_precision: float = 0.0
+    blocked_recall: float = 0.0
+    blocked_predicted_positive: int = 0
 
     # Escalation metrics
     escalations: int = 0
@@ -231,8 +234,12 @@ class ActionEvaluator:
                 metrics.approvals_correct += 1
 
         # Blocked actions
+        if expected_decision == GuardrailDecision.BLOCK:
+            metrics.blocked_expected_positive += 1
         if guardrail_decision == GuardrailDecision.BLOCK:
             metrics.blocked_actions += 1
+            if expected_decision is not None:
+                metrics.blocked_predicted_positive += 1
             metrics.per_action_type[action_type]["blocked"] += 1
             # Blocked is correct if expected was BLOCK
             if expected_decision == GuardrailDecision.BLOCK:
@@ -296,6 +303,8 @@ class ActionEvaluator:
             aggregate.approval_evaluation_cases += m.approval_evaluation_cases
             aggregate.blocked_actions += m.blocked_actions
             aggregate.blocked_correct += m.blocked_correct
+            aggregate.blocked_expected_positive += m.blocked_expected_positive
+            aggregate.blocked_predicted_positive += m.blocked_predicted_positive
             aggregate.escalations += m.escalations
             aggregate.escalations_correct += m.escalations_correct
 
@@ -327,11 +336,11 @@ class ActionEvaluator:
             )
             actual_approval = bool(gr and gr.requires_approval)
             errors = []
-            if expected_action is None:
-                errors.append("missing_expected_action_label")
-            elif actual_action != expected_action:
+            if expected_action is not None and actual_action != expected_action:
                 errors.append("action_type_mismatch")
-            if ar is None or not ar.success:
+            # Execution reliability is measured separately. Keep the action error
+            # union limited to cases with an expected action label.
+            if expected_action is not None and (ar is None or not ar.success):
                 errors.append("action_not_successful")
             if expected_guardrail is not None and actual_guardrail != expected_guardrail:
                 errors.append("guardrail_mismatch")
@@ -343,6 +352,7 @@ class ActionEvaluator:
                 "invoice_id": ap.exception_id or ap.target,
                 "expected_decision": expected_decision,
                 "expected_action_type": expected_action,
+                "label_status": "labeled" if expected_action is not None else "missing_expected_action_label",
                 "action_type": actual_action,
                 "action_type_correct": actual_action == expected_action if expected_action else None,
                 "expected_guardrail_decision": expected_guardrail,
@@ -371,9 +381,16 @@ class ActionEvaluator:
         if aggregate.approval_evaluation_cases > 0:
             aggregate.approval_accuracy = aggregate.approvals_correct / aggregate.approval_evaluation_cases
 
-        if aggregate.blocked_actions > 0:
-            aggregate.blocked_accuracy = aggregate.blocked_correct / aggregate.blocked_actions
-            aggregate.blocked_precision = aggregate.blocked_accuracy
+        if aggregate.blocked_expected_positive > 0:
+            aggregate.blocked_recall = (
+                aggregate.blocked_correct / aggregate.blocked_expected_positive
+            )
+            aggregate.blocked_accuracy = aggregate.blocked_recall
+        if aggregate.blocked_predicted_positive > 0:
+            # Preserve the explicitly named predicted-positive denominator.
+            aggregate.blocked_precision = (
+                aggregate.blocked_correct / aggregate.blocked_predicted_positive
+            )
 
         if aggregate.escalations > 0:
             aggregate.escalation_accuracy = aggregate.escalations_correct / aggregate.escalations
