@@ -340,7 +340,7 @@ class ActionEvaluator:
 
             per_case.append({
                 "action_id": ap.action_id,
-                "invoice_id": ap.target or ap.exception_id,
+                "invoice_id": ap.exception_id or ap.target,
                 "expected_decision": expected_decision,
                 "expected_action_type": expected_action,
                 "action_type": actual_action,

@@ -1,19 +1,20 @@
 {
   "status": "BLOCKED",
-  "reason": "Fresh deterministic DEV benchmark on candidate 97c24cd passed its narrow configured gates, but quality acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance/mappings, and unmeasured extraction.",
-  "candidate_commit": "97c24cd2f193813a936c38ea2e08f20d61e19582",
-  "ci_run": "38211575065",
-  "fresh_result": "benchmark_dev_20261012_062054.json",
+  "reason": "Fresh deterministic DEV benchmark on candidate 7e620e7 passed its narrow configured gates, but quality acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance/mappings, and unmeasured extraction.",
+  "candidate_commit": "7e620e7b5acabfe8ec374f72af11bfa157273bdd",
+  "ci_run": "38217304451",
+  "fresh_result": "benchmark_dev_20261012_072759.json",
   "fresh_run_status": "configured_gates_passed_quality_acceptance_blocked",
   "historical_result": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
   "fresh_run_required": true,
   "required_checks": [
     "Validate the frozen dataset schema and SHA-256 before execution",
     "Run deterministic DEV benchmark with seed 42 and pinned reference date",
-    "Review all layer metrics and denominators, including approval and blocked-action correctness",
+    "Review all layer metrics and denominators, including approval requirement accuracy and blocked-decision precision",
     "Compare against predeclared thresholds without changing labels or thresholds to force a pass",
     "Retain command, exit status, commit SHA, and output artifact",
     "Obtain independent human-review provenance and invoice/job mappings",
-    "Review low decision/action/approval/evidence-validity measures; do not infer acceptance from the narrow command exit"
+    "Review low decision/action/approval/evidence-validity measures and per-case error analysis; do not infer acceptance from the narrow command exit",
+    "Obtain independent policy-owner review of inferred approval requirements; no human reviewer provenance is present"
   ]
 }
