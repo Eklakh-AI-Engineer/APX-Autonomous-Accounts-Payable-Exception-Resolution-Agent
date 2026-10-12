@@ -1,7 +1,7 @@
 {
   "status": "fresh DEV benchmark passed narrow configured gates; release acceptance blocked",
-  "source": "CI run 38284814547 (#146) artifact benchmark_dev_20261012_173739.json",
-  "captured_at": "2026-10-12T17:37:39Z",
+  "source": "CI run 38285760881 (#148) artifact benchmark_dev_20261012_174606.json",
+  "captured_at": "2026-10-12T17:46:06Z",
   "tier": "dev",
   "seed": 42,
   "reference_date": "2026-08-29",
@@ -65,7 +65,7 @@
     "unauthorized_action_rate": 0.0,
     "automation_rate": 0.544,
     "business_decision_accuracy": 0.496,
-    "average_latency_ms": 118.4,
+    "average_latency_ms": 120.8,
     "estimated_net_cost_per_case_usd": -4.902
   },
   "failure_reasons": [],
@@ -76,8 +76,8 @@
     "Enum-normalization and invalid-evidence boundary changes produced no action or decision output row changes in the latest comparison. Retrieval metrics use 10 curated queries, not 500 invoices."
   ],
   "candidate_integrity_check": {
-    "commit": "c34c2f7e82ab43a86f5ba5760e016c638b5f53c8",
-    "ci_run": "38284814547",
+    "commit": "4e4a19cf70c5f6926e1c16a3f13318ce874eac08",
+    "ci_run": "38285760881",
     "ci_status": "success",
     "eval_dataset_sha256": "177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd",
     "evidence_corpus_sha256": "09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86",
@@ -98,9 +98,9 @@
     "acceptance_status": "BLOCKED"
   },
   "current_candidate_run": {
-    "commit": "c34c2f7e82ab43a86f5ba5760e016c638b5f53c8",
-    "ci_run": "38284814547",
-    "artifact": "benchmark_dev_20261012_173739.json",
+    "commit": "4e4a19cf70c5f6926e1c16a3f13318ce874eac08",
+    "ci_run": "38285760881",
+    "artifact": "benchmark_dev_20261012_174606.json",
     "tier": "dev",
     "seed": 42,
     "reference_date": "2026-08-29",
@@ -182,7 +182,7 @@
       "action_completion_denominator": 500
     },
     "quality_disposition": "BLOCKED: benchmark command passed narrow configured gates only; quality metrics and missing reviewer provenance/mappings block release acceptance; synthetic structured input does not measure document extraction.",
-    "average_latency_ms": 118.4,
+    "average_latency_ms": 120.8,
     "comparison_to_baseline": {
       "baseline_commit": "37e61bd21f9d121e08e04462afa3063030989f6d",
       "baseline_ci_run": "38223749502",
@@ -202,12 +202,12 @@
         "risk_mismatch": 35,
         "escalation_mismatch": 163
       },
-      "enum_regression_test": "Plain non-string Enum regression passes; CI #146 confirms the latest #138-to-#146 invoice-keyed comparison changed 0 of 687 combined action/decision error rows. Stale/invalid evidence is excluded from agent inputs and evidence IDs used."
+      "enum_regression_test": "Plain non-string Enum regression passes; CI #148 confirms the latest #138-to-#148 invoice-keyed comparison changed 0 of 687 combined action/decision error rows. Stale/invalid evidence is excluded from agent inputs and evidence IDs used."
     },
-    "artifact_id": "11762479486",
-    "artifact_archive_sha256": "0bb6f7eb40743291e0de2c66ea07aa3ca7d979a85368790e49e2ac5d466d6a9f",
-    "test_artifact_id": "11762982753",
-    "test_artifact_archive_sha256": "8885a80c8b0c93f6ac0392e8aca24b3d47ace70516901e54435fe30b08592128",
+    "artifact_id": "11763272206",
+    "artifact_archive_sha256": "4058b39121755c76c30083a247319d04a5e00ef436322c663af7eaecdf2fca67",
+    "test_artifact_id": "11763790597",
+    "test_artifact_archive_sha256": "f0de35b16f16e914ff3435d3f5a932db59008af733bc9e0d9943c0f46791642a",
     "test_summary": "Invoice repro 1 passed; API 61 passed/1 skipped; focused 132 passed; full suite 430 passed/1 skipped; configured Ruff passed."
   }
 }
