@@ -156,6 +156,29 @@ class TestActionGuardrail:
 
         assert result.decision.value == "BLOCK"
 
+    def test_guardrail_normalizes_enum_investigation_outcomes(self):
+        guardrail = ActionGuardrail()
+        risk_assessment = self._create_risk_assessment("LOW")
+        investigation = self._create_investigation_result("ESCALATE", 1)
+        exception_report = self._create_exception_report()
+
+        result = guardrail.evaluate(
+            action_type="AUTO_RESOLVE",
+            risk_assessment=risk_assessment,
+            investigation_result=investigation,
+            exception_report=exception_report,
+            idempotency_key="test-enum-outcome-block",
+        )
+
+        assert result.decision == GuardrailDecision.BLOCK
+        compatibility = [
+            check for check in result.checks
+            if check.check_name == "investigation_outcome_compatible"
+        ]
+        assert len(compatibility) == 1
+        assert compatibility[0].passed is False
+        assert compatibility[0].severity == "ERROR"
+
     def test_guardrail_requires_approval_for_medium_risk(self):
         """Test guardrail requires approval for medium risk action that allows medium risk."""
         guardrail = ActionGuardrail()
