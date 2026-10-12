@@ -305,7 +305,7 @@ class InvoiceService:
         if action_plan.guardrail_decision.requires_approval:
             set_processing_stage("approval_persistence")
             self.logger.info(f"Creating approval request for case {case['case_id']}")
-            from apx.action.models import ApprovalRequest, ApprovalStatus
+            from apx.action.models import ApprovalRequest
             approval_request = ApprovalRequest(
                 approval_id=str(uuid4()),
                 action_plan_id=str(case["case_id"]),
