@@ -47,7 +47,8 @@ Tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39` (push run `3822
 
 ## Latest evidence-chain update
 
-- Latest branch head after audit/scoreboard reconciliation: `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (documentation/evidence commit).
+- Latest verified code/evidence head: `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (the supplied benchmark evidence was run on `9179840cd029120e4d019ad421b91a1a5ea25d39`).
 - Latest-head CI run #94 (`38229883761`) passed: API suite 61 passed/1 skipped; full suite 423 passed/1 skipped; configured Ruff passed; deterministic benchmark completed.
 - Benchmark metrics and per-case comparison remain from tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, benchmark run #91 (`38228330768`), artifact `benchmark_dev_20261012_091921.json`. They are not attributed to the documentation commit.
 - Release remains `BLOCKED`; the PR stays draft/unmerged and live financial dispatch stays disabled.
+- Latest evidence metadata head: `a6e792e01f10c2341afd5e3f51d912fce4a2a445`; CI run `38231282711` was queued at the time of record. Re-verify its conclusion before relying on this metadata-only update as CI-cleared.
