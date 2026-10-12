@@ -1,9 +1,9 @@
 {
   "status": "BLOCKED",
-  "reason": "Fresh deterministic DEV benchmark on candidate be78e98 passed narrow configured gates; release acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance and invoice/job mappings, and unmeasured document extraction.",
-  "candidate_commit": "be78e98ae9d4ecfddc1c606ef58e3f530efb2c15",
-  "ci_run": "38226370970",
-  "fresh_result": "benchmark_dev_20261012_090045.json",
+  "reason": "Fresh deterministic DEV benchmark on tested candidate 9179840 passed narrow configured gates; release acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance and invoice/job mappings, and unmeasured document extraction.",
+  "candidate_commit": "9179840cd029120e4d019ad421b91a1a5ea25d39",
+  "ci_run": "38228330768",
+  "fresh_result": "benchmark_dev_20261012_091921.json",
   "fresh_run_status": "configured_gates_passed_quality_acceptance_blocked",
   "historical_result": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
   "fresh_run_required": false,
@@ -17,10 +17,10 @@
     "Review low decision/action/approval/evidence-validity measures and per-case error analysis; do not infer acceptance from the narrow command exit",
     "Obtain independent policy-owner review of inferred approval requirements; no human reviewer provenance is present"
   ],
-  "ci_push_run": "38226363177",
+  "ci_push_run": "38228330768",
   "benchmark_command": "python -m apx.evaluation.benchmark --tier dev --seed 42 --output artifacts/benchmark (workflow default APX_REFERENCE_DATE=2026-08-29)",
-  "artifact_id": "11736993879",
-  "artifact_archive_sha256": "b05f0ed731092738d2c2e5f8f980bc8c95f31c9dfda1e3818cfa10963de982cb",
+  "artifact_id": "11738111338",
+  "artifact_archive_sha256": "82e7fbe8db5c38f6148d28717f4478edfd8393d0c25a2e238c282064fc5d5f24",
   "dataset_sha256": "177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd",
   "evidence_corpus_sha256": "09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86",
   "baseline_comparison": {
@@ -42,6 +42,9 @@
       "escalation_mismatch": 163
     },
     "decision_error_case_union": "189/500",
-    "interpretation": "Enum-normalization change did not alter any keyed per-case benchmark row or action/guardrail metric. Categories overlap."
+    "interpretation": "Enum-normalization change did not alter any keyed per-case benchmark row or action/guardrail metric. Categories overlap.",
+    "verification_candidate_commit": "9179840cd029120e4d019ad421b91a1a5ea25d39",
+    "intermediate_run_90_to_91_action_error_rows_changed": 0,
+    "intermediate_run_90_to_91_decision_error_rows_changed": 0
   }
 }
