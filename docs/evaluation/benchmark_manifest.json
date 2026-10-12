@@ -1,0 +1,29 @@
+{
+  "manifest_version": 1,
+  "status": "provisional_unverified",
+  "dataset": {
+    "path": "apx/data/datasets/eval/eval_dataset.json",
+    "sha256": "177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd",
+    "schema_validation": "not_run_in_this_environment"
+  },
+  "evidence_corpus": {
+    "path": "apx/data/datasets/evidence/evidence_corpus.json",
+    "sha256": "09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86"
+  },
+  "historical_result": {
+    "path": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
+    "timestamp": "2026-08-19T17:11:00.991208",
+    "tier": "dev",
+    "seed": 42,
+    "reference_date": "2026-08-29",
+    "total_invoices": 500,
+    "passed": false,
+    "not_a_fresh_run": true
+  },
+  "reproduction_command": "python -m apx.evaluation.benchmark --tier dev --seed 42 --output artifacts/benchmark",
+  "notes": [
+    "Hashes are SHA-256 of the exact checked-in file bytes on the audit branch.",
+    "The benchmark output is historical and failed its recorded gates. Do not present it as current performance.",
+    "This manifest does not assert that benchmark schema, labels, or metrics passed validation."
+  ]
+}

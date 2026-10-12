@@ -1,0 +1,13 @@
+{
+  "status": "BLOCKED",
+  "reason": "No fresh benchmark execution was possible in the supplied environment; the latest committed historical benchmark failed its recorded gates.",
+  "historical_result": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
+  "fresh_run_required": true,
+  "required_checks": [
+    "Validate the frozen dataset schema and SHA-256 before execution",
+    "Run deterministic DEV benchmark with seed 42 and pinned reference date",
+    "Review all layer metrics and denominators, including approval and blocked-action correctness",
+    "Compare against predeclared thresholds without changing labels or thresholds to force a pass",
+    "Retain command, exit status, commit SHA, and output artifact"
+  ]
+}

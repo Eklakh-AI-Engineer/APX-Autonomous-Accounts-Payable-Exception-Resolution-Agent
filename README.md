@@ -12,7 +12,7 @@ The core principle is simple:
 
 ## Current status
 
-**Latest recorded milestone: Phase 6D — Observability & Security.**
+**Release status: blocked.** Phase 6D is the latest completed engineering milestone; this repository has not passed the v1.0 release gates. The current audit records unresolved approval identity and implicit DEV auto-approval risks, a failing historical benchmark, and missing runtime/ERP/deployment/restore evidence. See [the audit report](docs/audit/FINAL_AUDIT_REPORT.md) and [release checklist](docs/release/RELEASE_CHECKLIST.md).
 
 | Area | Status |
 |---|---|

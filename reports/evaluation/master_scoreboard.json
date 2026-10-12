@@ -1,0 +1,37 @@
+{
+  "status": "historical_baseline_only",
+  "source": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
+  "captured_at": "2026-08-19T17:11:00.991208",
+  "tier": "dev",
+  "seed": 42,
+  "reference_date": "2026-08-29",
+  "invoices": 500,
+  "passed": false,
+  "metrics": {
+    "extraction_f1": 1.0,
+    "detection_precision": 0.15411931818181818,
+    "detection_recall": 0.96875,
+    "detection_f1": 0.2659313725490196,
+    "retrieval_recall_at_5": 0.6,
+    "retrieval_recall_at_10": 0.6,
+    "retrieval_mrr": 0.55,
+    "retrieval_ndcg_at_10": 0.6,
+    "valid_evidence_rate": 0.030000000000000006,
+    "vendor_scope_correctness": 0.09,
+    "business_decision_accuracy": 0.274,
+    "automation_rate": 0.024,
+    "unauthorized_action_rate": 0.0,
+    "estimated_total_cost_usd": 514.0,
+    "average_latency_ms": 2712.5
+  },
+  "failure_reasons": [
+    "Detection F1 (0.27) below target 0.85",
+    "Retrieval Recall@5 (0.60) below target 0.70",
+    "Automation rate (0.02) below target 0.50"
+  ],
+  "limitations": [
+    "Historical committed result; not rerun against this audit checkout.",
+    "Recorded benchmark failed. Thresholds and score semantics require independent review.",
+    "Approval-correctness metric was not independently extracted or verified."
+  ]
+}
