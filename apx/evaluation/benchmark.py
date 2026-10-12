@@ -508,11 +508,11 @@ class BenchmarkOrchestrator:
             f"  Escalation Accuracy: {result.decision.escalation_metrics.escalation_accuracy:.2%}",
             "",
             "Layer 5 - Action Evaluation:",
-            f"  Action Accuracy: {result.action.metrics.action_accuracy:.2%}",
-            f"  Guardrail Accuracy: {result.action.metrics.guardrail_accuracy:.2%}",
+            f"  Action Accuracy: {result.action.metrics.action_accuracy:.2%} ({result.action.metrics.correct_actions}/{result.action.metrics.action_evaluation_cases} labeled cases)",
+            f"  Guardrail Accuracy: {result.action.metrics.guardrail_accuracy:.2%} ({result.action.metrics.guardrail_correct}/{result.action.metrics.guardrail_decisions} labeled cases)",
             f"  Unauthorized Action Rate: {result.action.metrics.unauthorized_action_rate:.2%}",
-            f"  Approval Accuracy: {result.action.metrics.approval_accuracy:.2%}",
-            f"  Blocked Accuracy: {result.action.metrics.blocked_accuracy:.2%}",
+            f"  Approval Requirement Accuracy: {result.action.metrics.approval_accuracy:.2%} ({result.action.metrics.approvals_correct}/{result.action.metrics.approval_evaluation_cases} labeled cases; expected requirement is inferred from the benchmark action/risk mapping)",
+            f"  Blocked Decision Precision: {result.action.metrics.blocked_precision:.2%} ({result.action.metrics.blocked_correct}/{result.action.metrics.blocked_actions} predicted BLOCK cases)",
             "",
             "Layer 6 - Business Evaluation:",
             result.business.summary if result.business else "N/A",
@@ -526,6 +526,38 @@ class BenchmarkOrchestrator:
                 *[f"  - {r}" for r in result.failure_reasons],
                 "",
             ])
+
+        if result.action and result.action.per_case:
+            error_cases = [case for case in result.action.per_case if case.get("errors")]
+            lines.extend([
+                "Per-case action error analysis (synthetic structured-input invoices):",
+                f"  Cases with one or more action/guardrail/approval errors: {len(error_cases)} / {len(result.action.per_case)}",
+            ])
+            for case in error_cases:
+                lines.append(
+                    "  " + str(case.get("invoice_id") or case.get("action_id"))
+                    + f": expected_action={case.get('expected_action_type')}; actual_action={case.get('action_type')}; "
+                    + f"expected_guardrail={case.get('expected_guardrail_decision')}; actual_guardrail={case.get('guardrail_decision')}; "
+                    + f"action_success={case.get('action_success')}; errors={','.join(case.get('errors', []))}"
+                )
+            lines.extend([
+                "  These are deterministic synthetic invoice outcomes, not document extraction results.",
+                "",
+            ])
+        if result.decision and result.decision.per_case:
+            decision_errors = [case for case in result.decision.per_case if case.get("errors")]
+            lines.extend([
+                "Per-case decision error analysis:",
+                f"  Cases with one or more decision/risk/escalation errors: {len(decision_errors)} / {len(result.decision.per_case)}",
+            ])
+            for case in decision_errors:
+                lines.append(
+                    "  " + str(case.get("invoice_id"))
+                    + f": expected_decision={case.get('expected_decision')}; actual_outcome={case.get('actual_outcome')}; "
+                    + f"expected_risk={case.get('expected_risk')}; actual_risk={case.get('actual_risk')}; "
+                    + f"guardrail={case.get('guardrail_decision')}; errors={','.join(case.get('errors', []))}"
+                )
+            lines.append("")
 
         return "\n".join(lines)
 

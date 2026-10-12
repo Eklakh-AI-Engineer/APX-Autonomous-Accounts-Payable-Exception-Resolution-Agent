@@ -292,11 +292,31 @@ class DecisionEvaluator:
                 all_escalation.total_cases += em.total_cases
                 all_escalation.escalation_correct += em.escalation_correct
 
+            expected_raw = gt.expected_decision
+            expected_outcome = self._DECISION_MAP.get(expected_raw) if isinstance(expected_raw, str) else expected_raw
+            actual_outcome = inv_result.outcome if inv_result else None
+            expected_risk = self._EXPECTED_RISK_MAP.get(expected_raw) if isinstance(expected_raw, str) else None
+            actual_risk = risk_assess.risk_level if risk_assess else None
+            errors = []
+            if inv_result and actual_outcome != expected_outcome:
+                errors.append("decision_mismatch")
+            if risk_assess and expected_risk is not None and actual_risk != expected_risk:
+                errors.append("risk_mismatch")
+            if guardrail and inv_result and em.escalation_correct != 1:
+                errors.append("escalation_mismatch")
+
             per_case.append({
                 "invoice_id": r.get("invoice_id"),
+                "expected_decision": expected_raw,
+                "expected_outcome": expected_outcome.value if hasattr(expected_outcome, "value") else expected_outcome,
+                "actual_outcome": actual_outcome.value if hasattr(actual_outcome, "value") else actual_outcome,
+                "expected_risk": expected_risk.value if hasattr(expected_risk, "value") else expected_risk,
+                "actual_risk": actual_risk.value if hasattr(actual_risk, "value") else actual_risk,
+                "guardrail_decision": guardrail.decision.value if guardrail else None,
                 "outcome_correct": om.correct_decisions == 1 if inv_result else None,
                 "risk_correct": rm.risk_correct == 1 if risk_assess else None,
                 "escalation_correct": em.escalation_correct == 1 if guardrail and inv_result else None,
+                "errors": errors,
             })
 
         # Compute aggregate metrics

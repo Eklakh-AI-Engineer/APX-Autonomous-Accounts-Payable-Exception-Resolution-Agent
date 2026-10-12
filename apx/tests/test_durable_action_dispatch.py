@@ -98,6 +98,21 @@ def test_success_reference_and_terminal_attempt_are_durable(clean_db):
     assert repo.list_attempts(action_id)[0]["state"] == "EXECUTED"
 
 
+def test_dead_letter_state_and_attempt_are_durable(clean_db):
+    _, action_id, fp, evidence, policy = _approved_action()
+    repo = SQLiteActionRepository()
+    assert repo.claim_for_dispatch(action_id, claim_token="worker-dlq", lease_seconds=60,
+        action_fingerprint=fp, evidence_digest=evidence, policy_fingerprint=policy)
+    assert repo.record_dispatch_outcome(action_id, "worker-dlq", state="DEAD_LETTER",
+        error_code="PROVIDER_PERMANENT_FAILURE")
+    assert repo.get(action_id)["status"] == "DEAD_LETTER"
+    assert repo.get(action_id)["dead_lettered_at"] is not None
+    assert repo.list_dead_letters()[0]["action_id"] == str(action_id)
+    attempt = repo.list_attempts(action_id)[0]
+    assert attempt["state"] == "DEAD_LETTER"
+    assert attempt["error_code"] == "PROVIDER_PERMANENT_FAILURE"
+
+
 def test_crash_after_downstream_success_is_reconciled_without_retry(clean_db):
     _, action_id, fp, evidence, policy = _approved_action()
     repo = SQLiteActionRepository()

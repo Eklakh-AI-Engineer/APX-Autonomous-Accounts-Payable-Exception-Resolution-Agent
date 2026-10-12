@@ -15,6 +15,7 @@ class ActionMetrics:
     total_actions: int = 0
     correct_actions: int = 0
     action_accuracy: float = 0.0
+    action_evaluation_cases: int = 0
 
     # Guardrail metrics
     guardrail_decisions: int = 0
@@ -29,11 +30,13 @@ class ActionMetrics:
     approvals_required: int = 0
     approvals_correct: int = 0
     approval_accuracy: float = 0.0
+    approval_evaluation_cases: int = 0
 
     # Blocked actions
     blocked_actions: int = 0
     blocked_correct: int = 0
     blocked_accuracy: float = 0.0
+    blocked_precision: float = 0.0
 
     # Escalation metrics
     escalations: int = 0
@@ -148,8 +151,6 @@ class ActionEvaluator:
         expected_decision = self._gt_expected_decision(ground_truth)
         if expected_decision is not None:
             return self._EXPECTED_ACTION_MAP.get(expected_decision)
-        if action_plan and action_plan.action_type:
-            return action_plan.action_type.value
         return None
 
     def _expected_requires_approval(self, expected_action: str, risk_level: str) -> bool:
@@ -178,6 +179,8 @@ class ActionEvaluator:
 
         expected_action = self._expected_action_type(action_plan, ground_truth)
         expected_decision = self._expected_guardrail_decision(action_plan, ground_truth)
+        if expected_action is not None:
+            metrics.action_evaluation_cases = 1
 
         risk_level = None
         if action_plan.risk_assessment:
@@ -185,16 +188,17 @@ class ActionEvaluator:
             risk_level = risk.value if hasattr(risk, "value") else str(risk)
 
         action_success = bool(action_result and action_result.success)
-        action_type_correct = action_type == expected_action if expected_action else True
+        action_type_correct = action_type == expected_action if expected_action else False
         if action_success and action_type_correct:
             metrics.correct_actions += 1
             metrics.per_action_type[action_type]["correct"] += 1
 
         # Guardrail decision correctness
-        metrics.guardrail_decisions += 1
         guardrail_decision = guardrail_result.decision if guardrail_result else None
-        if guardrail_decision == expected_decision:
-            metrics.guardrail_correct += 1
+        if expected_decision is not None:
+            metrics.guardrail_decisions += 1
+            if guardrail_decision == expected_decision:
+                metrics.guardrail_correct += 1
 
         # Unauthorized action check
         # Unauthorized = action executed when guardrail said BLOCK
@@ -207,9 +211,14 @@ class ActionEvaluator:
 
         # Approval correctness
         actual_requires_approval = bool(guardrail_result and guardrail_result.requires_approval)
-        expected_approval = self._expected_requires_approval(expected_action or action_type, risk_level or "LOW")
-        if actual_requires_approval or expected_approval:
-            metrics.approvals_required += 1
+        expected_approval = (
+            self._expected_requires_approval(expected_action, risk_level or "LOW")
+            if expected_action else None
+        )
+        if expected_approval is not None:
+            metrics.approval_evaluation_cases = 1
+            if actual_requires_approval or expected_approval:
+                metrics.approvals_required += 1
             if actual_requires_approval == expected_approval:
                 metrics.approvals_correct += 1
 
@@ -245,8 +254,8 @@ class ActionEvaluator:
         else:
             risk_level = None
 
-        if risk_level is None:
-            return GuardrailDecision.ALLOW
+        if risk_level is None or expected_action is None:
+            return None
 
         decisions = self._EXPECTED_GUARDRAIL_DECISIONS.get(expected_action, {})
         return decisions.get(risk_level, GuardrailDecision.ALLOW)
@@ -268,11 +277,13 @@ class ActionEvaluator:
             # Aggregate
             aggregate.total_actions += m.total_actions
             aggregate.correct_actions += m.correct_actions
+            aggregate.action_evaluation_cases += m.action_evaluation_cases
             aggregate.guardrail_decisions += m.guardrail_decisions
             aggregate.guardrail_correct += m.guardrail_correct
             aggregate.unauthorized_actions += m.unauthorized_actions
             aggregate.approvals_required += m.approvals_required
             aggregate.approvals_correct += m.approvals_correct
+            aggregate.approval_evaluation_cases += m.approval_evaluation_cases
             aggregate.blocked_actions += m.blocked_actions
             aggregate.blocked_correct += m.blocked_correct
             aggregate.escalations += m.escalations
@@ -285,28 +296,70 @@ class ActionEvaluator:
                 for k, v in counts.items():
                     aggregate.per_action_type[atype][k] += v
 
+            expected_decision = self._gt_expected_decision(gt)
+            expected_action = self._expected_action_type(ap, gt) if expected_decision else None
+            actual_action = ap.action_type.value if ap.action_type else None
+            expected_guardrail = (
+                self._expected_guardrail_decision(ap, gt) if expected_decision else None
+            )
+            actual_guardrail = gr.decision if gr else None
+            if hasattr(expected_guardrail, "value"):
+                expected_guardrail = expected_guardrail.value
+            if hasattr(actual_guardrail, "value"):
+                actual_guardrail = actual_guardrail.value
+            risk_level = None
+            if ap.risk_assessment:
+                risk = ap.risk_assessment.risk_level
+                risk_level = risk.value if hasattr(risk, "value") else str(risk)
+            expected_approval = (
+                self._expected_requires_approval(expected_action, risk_level or "LOW")
+                if expected_action else None
+            )
+            actual_approval = bool(gr and gr.requires_approval)
+            errors = []
+            if expected_action is None:
+                errors.append("missing_expected_action_label")
+            elif actual_action != expected_action:
+                errors.append("action_type_mismatch")
+            if ar is None or not ar.success:
+                errors.append("action_not_successful")
+            if expected_guardrail is not None and actual_guardrail != expected_guardrail:
+                errors.append("guardrail_mismatch")
+            if expected_approval is not None and actual_approval != expected_approval:
+                errors.append("approval_requirement_mismatch")
+
             per_case.append({
                 "action_id": ap.action_id,
-                "action_type": ap.action_type.value if ap.action_type else None,
-                "guardrail_decision": gr.decision.value if gr else None,
+                "invoice_id": ap.target or ap.exception_id,
+                "expected_decision": expected_decision,
+                "expected_action_type": expected_action,
+                "action_type": actual_action,
+                "action_type_correct": actual_action == expected_action if expected_action else None,
+                "expected_guardrail_decision": expected_guardrail,
+                "guardrail_decision": actual_guardrail,
+                "expected_requires_approval": expected_approval,
+                "requires_approval": actual_approval,
                 "action_success": ar.success if ar else None,
                 "unauthorized": m.unauthorized_actions > 0,
                 "correct": m.correct_actions > 0,
+                "errors": errors,
             })
 
         # Compute aggregate rates
+        if aggregate.action_evaluation_cases > 0:
+            aggregate.action_accuracy = aggregate.correct_actions / aggregate.action_evaluation_cases
         if aggregate.total_actions > 0:
-            aggregate.action_accuracy = aggregate.correct_actions / aggregate.total_actions
             aggregate.unauthorized_action_rate = aggregate.unauthorized_actions / aggregate.total_actions
 
         if aggregate.guardrail_decisions > 0:
             aggregate.guardrail_accuracy = aggregate.guardrail_correct / aggregate.guardrail_decisions
 
-        if aggregate.approvals_required > 0:
-            aggregate.approval_accuracy = aggregate.approvals_correct / aggregate.approvals_required
+        if aggregate.approval_evaluation_cases > 0:
+            aggregate.approval_accuracy = aggregate.approvals_correct / aggregate.approval_evaluation_cases
 
         if aggregate.blocked_actions > 0:
             aggregate.blocked_accuracy = aggregate.blocked_correct / aggregate.blocked_actions
+            aggregate.blocked_precision = aggregate.blocked_accuracy
 
         if aggregate.escalations > 0:
             aggregate.escalation_accuracy = aggregate.escalations_correct / aggregate.escalations

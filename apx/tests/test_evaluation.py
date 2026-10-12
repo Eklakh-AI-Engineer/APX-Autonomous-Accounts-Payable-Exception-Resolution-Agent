@@ -434,6 +434,23 @@ class TestDecisionEvaluator:
         assert hasattr(result, 'risk_accuracy')
         assert hasattr(result, 'risk_correct')
 
+    def test_batch_reports_invoice_level_decision_errors(self):
+        evaluator = DecisionEvaluator()
+        gt = _create_test_ground_truth("INV-ERR-7", [ExceptionCode.CREDIT_ISSUE])
+        gt.expected_decision = "ESCALATE"
+        result = evaluator.evaluate_batch([{
+            "invoice_id": gt.invoice_id,
+            "investigation_result": _create_test_investigation_result(gt.invoice_id, TerminalOutcome.RESOLVE),
+            "risk_assessment": _create_test_risk_assessment(gt.invoice_id, RiskLevel.LOW),
+            "guardrail_result": _create_test_guardrail_result(GuardrailDecision.ALLOW),
+        }], [gt])
+        row = result.per_case[0]
+        assert row["invoice_id"] == "INV-ERR-7"
+        assert row["expected_outcome"] == "ESCALATE"
+        assert row["actual_outcome"] == "RESOLVE"
+        assert "decision_mismatch" in row["errors"]
+        assert "risk_mismatch" in row["errors"]
+
 
 class TestActionEvaluator:
     """Tests for Layer 5 - Action Evaluation."""
@@ -479,6 +496,41 @@ class TestActionEvaluator:
         result = evaluator.evaluate_action(action_plan, action_result, guardrail_result, gt)
 
         assert "blocked_accuracy" in dir(result) or hasattr(result, 'blocked_correct')
+
+    def test_batch_records_invoice_level_action_errors_and_label_gaps(self):
+        evaluator = ActionEvaluator()
+        plan = _create_test_action_plan("INV-CASE-9", ActionType.ESCALATE_TO_HUMAN)
+        result = evaluator.evaluate_batch(
+            [plan],
+            [_create_test_action_result(False)],
+            [_create_test_guardrail_result(GuardrailDecision.BLOCK)],
+            [_create_test_ground_truth("INV-CASE-9", [ExceptionCode.CREDIT_ISSUE])],
+        )
+        row = result.per_case[0]
+        assert row["invoice_id"] == plan.target or row["invoice_id"] == plan.exception_id
+        assert row["expected_action_type"] is not None
+        assert row["action_type_correct"] is False
+        assert "action_not_successful" in row["errors"]
+        assert "expected_guardrail_decision" in row
+        assert "expected_requires_approval" in row
+        assert result.metrics.action_evaluation_cases == 1
+        assert result.metrics.approval_evaluation_cases == 1
+
+    def test_unlabeled_action_is_excluded_instead_of_self_scoring(self):
+        plan = _create_test_action_plan("INV-UNLABELED", ActionType.AUTO_RESOLVE)
+        result = ActionEvaluator().evaluate_batch(
+            [plan],
+            [_create_test_action_result(True)],
+            [_create_test_guardrail_result(GuardrailDecision.ALLOW)],
+            [GroundTruth(invoice_id="INV-UNLABELED")],
+        )
+        assert result.metrics.total_actions == 1
+        assert result.metrics.action_evaluation_cases == 0
+        assert result.metrics.guardrail_decisions == 0
+        assert result.metrics.approval_evaluation_cases == 0
+        assert result.metrics.action_accuracy == 0.0
+        assert result.per_case[0]["action_type_correct"] is None
+        assert "missing_expected_action_label" in result.per_case[0]["errors"]
 
 
 class TestBusinessEvaluator:
