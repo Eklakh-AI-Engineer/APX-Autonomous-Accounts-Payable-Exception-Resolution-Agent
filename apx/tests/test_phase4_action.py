@@ -547,8 +547,12 @@ class TestPhase4Pipeline:
         
         assert investigation_result is not None
         assert action_plan is not None
-        assert action_result is not None
-        assert action_result.success is True
+        if action_plan.approval_status == ApprovalStatus.PENDING:
+            assert action_plan.status == ActionStatus.PENDING
+            assert action_result is None
+        else:
+            assert action_result is not None
+            assert action_result.success is True
 
     def test_run_full_pipeline_with_custom_action_type(self):
         """Test full pipeline with custom action type."""
@@ -735,6 +739,9 @@ class TestPhase4PipelineIntegration:
         
         assert action_result is not None
         assert isinstance(action_result.success, bool)
+        if action_plan.approval_status == ApprovalStatus.PENDING:
+            assert action_result.success is False
+            assert "not approved" in action_result.error_message.lower()
         
         print(f"Phase 1: Exception report - {len(exception_report.exceptions)} exceptions")
         print(f"Phase 2: Evidence set - {len(evidence_set.validated_evidence)} validated evidence")

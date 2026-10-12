@@ -91,6 +91,11 @@ class ApprovalRequest(BaseModel):
     resolution_notes: str = ""
     required_approvers: list[str] = Field(default_factory=list)
     approvals: dict[str, bool] = Field(default_factory=dict)  # approver_id -> approved
+    action_fingerprint: str = ""
+    evidence_digest: str = ""
+    policy_fingerprint: str = ""
+    expires_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
 
 
 class ActionExecutorConfig(BaseModel):

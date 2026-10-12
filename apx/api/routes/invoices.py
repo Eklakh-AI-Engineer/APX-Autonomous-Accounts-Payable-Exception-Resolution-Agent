@@ -16,7 +16,7 @@ from apx.api.schemas import (
 )
 from apx.api.schemas import InvoiceLineResponse
 from apx.application.services import get_invoice_service
-from apx.api.middleware import get_current_role, get_request_id
+from apx.api.middleware import get_current_role, get_current_user_id, get_request_id
 from apx.persistence import CaseRepository
 from apx.persistence.database import get_session_factory
 
@@ -113,10 +113,13 @@ async def process_invoice(
     idempotency_key: Optional[str] = Query(None, alias="idempotency_key"),
 ):
     """Process an invoice through the full APX pipeline."""
+    requester_id = get_current_user_id(request)
+    if not requester_id:
+        raise HTTPException(status_code=403, detail="Authenticated requester identity is required")
     service = get_invoice_service()
 
     try:
-        result = service.process_invoice(invoice_id, idempotency_key)
+        result = service.process_invoice(invoice_id, idempotency_key, requested_by=requester_id)
         return ProcessResponse(**result)
     except ValueError as e:
         raise HTTPException(

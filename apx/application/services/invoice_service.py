@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import hashlib
 from datetime import datetime
 from typing import Any, Optional
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5, NAMESPACE_URL
 
 from apx.action.models import ActionPlan, ActionType, ActionStatus, ApprovalStatus
+from apx.action.integrity import action_fingerprint, evidence_snapshot_digest, policy_fingerprint as guardrail_fingerprint
 from apx.action.pipeline import Phase4Pipeline
 from apx.agent.controller import run_investigation
 from apx.agent.models import InvestigationResult
@@ -130,8 +132,16 @@ class InvoiceService:
             result["case"] = case
         return result
 
-    def process_invoice(self, invoice_id: str, idempotency_key: Optional[str] = None) -> dict[str, Any]:
+    def process_invoice(
+        self,
+        invoice_id: str,
+        idempotency_key: Optional[str] = None,
+        *,
+        requested_by: str,
+    ) -> dict[str, Any]:
         """Process an invoice through the full APX pipeline."""
+        if not requested_by or requested_by == "system":
+            raise ValueError("Authenticated requester identity is required")
         start_time = datetime.utcnow()
 
         # Get invoice
@@ -237,7 +247,27 @@ class InvoiceService:
             investigation_result=investigation_result,
             exception_report=exception_report,
             evidence_set=evidence_set,
+            idempotency_key=hashlib.sha256(
+                f"{case_id}:{invoice_id}:{idempotency_key or 'apx-action-v1'}".encode("utf-8")
+            ).hexdigest(),
         )
+
+        evidence_digest = evidence_snapshot_digest(evidence_set)
+        policy_digest = guardrail_fingerprint(self.pipeline.guardrail)
+        action_plan.idempotency_key = hashlib.sha256(
+            f"{case_id}:{invoice_id}:{idempotency_key or 'apx-action-v1'}".encode("utf-8")
+        ).hexdigest()
+        action_plan.guardrail_decision.idempotency_key = action_plan.idempotency_key
+        action_plan.action_id = str(uuid5(NAMESPACE_URL, action_plan.idempotency_key))
+        action_plan.metadata.update(
+            {
+                "case_id": str(case_id),
+                "evidence_digest": evidence_digest,
+                "policy_fingerprint": policy_digest,
+            }
+        )
+        fingerprint = action_fingerprint(action_plan, evidence_digest, policy_digest)
+        action_plan.metadata["action_fingerprint"] = fingerprint
 
         self.audit_repo.log(
             case_id=UUID(case["case_id"]),
@@ -269,9 +299,12 @@ class InvoiceService:
                 action_plan_id=str(case["case_id"]),
                 action_type=action_plan.action_type.value if hasattr(action_plan.action_type, 'value') else str(action_plan.action_type),
                 risk_level=str(action_plan.risk_assessment.risk_level) if action_plan.risk_assessment else "UNKNOWN",
-                requested_by="system",
+                requested_by=requested_by,
                 status=ApprovalStatus.PENDING,
                 required_approvers=action_plan.guardrail_decision.required_approvals,
+                action_fingerprint=fingerprint,
+                evidence_digest=evidence_digest,
+                policy_fingerprint=policy_digest,
             )
             self.approval_repo.create(approval_request)
 
@@ -286,6 +319,7 @@ class InvoiceService:
                     "action_type": approval_request.action_type,
                     "required_approvers": approval_request.required_approvers,
                 },
+                user_id=requested_by,
             )
 
         # Execute if approved
@@ -310,12 +344,18 @@ class InvoiceService:
         processing_time_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
         # Update case status
-        self.case_repo.update_status(UUID(case["case_id"]), "COMPLETED", completed_at=datetime.utcnow())
+        awaiting_approval = action_plan.approval_status == ApprovalStatus.PENDING
+        case_status = "PENDING_APPROVAL" if awaiting_approval else "COMPLETED"
+        self.case_repo.update_status(
+            UUID(case["case_id"]),
+            case_status,
+            completed_at=None if awaiting_approval else datetime.utcnow(),
+        )
 
         return {
             "case_id": str(case["case_id"]),
             "invoice_id": invoice_id,
-            "status": "completed",
+            "status": "awaiting_approval" if awaiting_approval else "completed",
             "current_phase": "phase4",
             "exception_codes": [e.value for e in exception_report.exception_codes],
             "investigation_outcome": investigation_result.outcome.value if investigation_result.outcome else "UNKNOWN",

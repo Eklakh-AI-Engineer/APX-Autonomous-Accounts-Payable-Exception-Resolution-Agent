@@ -205,6 +205,8 @@ class TestInvoiceEndpoints:
         data = response.json()
         assert data["invoice_id"] == "INV-TEST-004"
         assert "case_id" in data
+        if data["action_status"] == "PENDING":
+            assert data["status"] == "awaiting_approval"
 
     def test_process_nonexistent_invoice(self, client, operator_headers):
         """Test processing non-existent invoice returns 404."""

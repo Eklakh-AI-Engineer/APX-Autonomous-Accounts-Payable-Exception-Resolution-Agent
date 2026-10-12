@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.orm import Session
 
 from apx.persistence.database import session_scope
@@ -518,7 +518,12 @@ class SQLiteApprovalRepository(ApprovalRepository):
                 required_approvers=approval.required_approvers,
                 approvals_json=approval.approvals,
                 requested_by=approval.requested_by,
+                action_fingerprint=approval.action_fingerprint,
+                evidence_digest=approval.evidence_digest,
+                policy_fingerprint=approval.policy_fingerprint,
                 requested_at=approval.requested_at,
+                expires_at=approval.expires_at,
+                revoked_at=approval.revoked_at,
                 notes=approval.resolution_notes if approval.resolution_notes else "",
             )
             session.add(orm)
@@ -580,6 +585,37 @@ class SQLiteApprovalRepository(ApprovalRepository):
             orm.approvals_json = approvals
             return True
 
+    def resolve(
+        self, approval_id: UUID, status: ApprovalStatus, approver_id: str,
+        notes: Optional[str] = None,
+    ) -> bool:
+        """Claim the pending approval and record its decision in one transaction."""
+        if status not in (ApprovalStatus.APPROVED, ApprovalStatus.REJECTED):
+            raise ValueError("Approval resolution must be APPROVED or REJECTED")
+        now = datetime.utcnow()
+        with session_scope() as session:
+            claimed = session.execute(
+                update(ApprovalORM)
+                .where(
+                    ApprovalORM.approval_id == approval_id,
+                    ApprovalORM.status == ApprovalStatus.PENDING.value,
+                    ApprovalORM.revoked_at.is_(None),
+                    (ApprovalORM.expires_at.is_(None) | (ApprovalORM.expires_at > now)),
+                )
+                .values(status=status.value, resolved_by=approver_id, resolved_at=now, notes=notes or "")
+            )
+            if claimed.rowcount != 1:
+                return False
+            orm = session.get(ApprovalORM, approval_id)
+            approvals = dict(orm.approvals_json) if orm.approvals_json else {}
+            approvals[approver_id] = {
+                "approved": status == ApprovalStatus.APPROVED,
+                "notes": notes,
+                "timestamp": now.isoformat(),
+            }
+            orm.approvals_json = approvals
+            return True
+
     def list_pending(self, limit: int = 100, offset: int = 0) -> List[ApprovalRequest]:
         with session_scope() as session:
             stmt = select(ApprovalORM).where(ApprovalORM.status == "PENDING").order_by(ApprovalORM.requested_at.desc()).limit(limit).offset(offset)
@@ -616,12 +652,17 @@ class SQLiteApprovalRepository(ApprovalRepository):
             action_type=orm.action_type,
             risk_level=orm.risk_level,
             requested_by=orm.requested_by,
+            action_fingerprint=orm.action_fingerprint or "",
+            evidence_digest=orm.evidence_digest or "",
+            policy_fingerprint=orm.policy_fingerprint or "",
             status=ApprovalStatus(orm.status),
             required_approvers=orm.required_approvers,
             approvals=approvals_bool,
             requested_at=orm.requested_at,
             resolved_by=orm.resolved_by or "",
             resolved_at=orm.resolved_at,
+            expires_at=orm.expires_at,
+            revoked_at=orm.revoked_at,
             resolution_notes=orm.notes,
         )
 

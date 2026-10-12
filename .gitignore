@@ -26,3 +26,4 @@ apx/data/datasets/bootstrap/*.json
 apx/data/datasets/ground_truth/*.json
 !apx/data/datasets/bootstrap/.gitkeep
 !apx/data/datasets/ground_truth/.gitkeep
+.venv*/

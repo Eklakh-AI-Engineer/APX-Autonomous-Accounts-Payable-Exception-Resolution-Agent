@@ -2,7 +2,7 @@
 
 import os
 print(f"CONFTEST: Setting APX_API_API_KEYS")
-os.environ["APX_API_API_KEYS"] = "admin-key:admin,operator-key:operator,approver-key:approver:approver1,reader-key:reader"
+os.environ["APX_API_API_KEYS"] = "admin-key:admin:admin1,operator-key:operator:operator1,approver-key:approver:approver1:human_review|finance_approval,reader-key:reader:reader1"
 print(f"CONFTEST: APX_API_API_KEYS = {os.environ.get('APX_API_API_KEYS')}")
 
 # Reset API settings to pick up new environment variables

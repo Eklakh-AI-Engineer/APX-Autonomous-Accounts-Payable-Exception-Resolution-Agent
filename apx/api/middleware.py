@@ -542,6 +542,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request.state.api_key = api_key
         request.state.role = role
         request.state.user_id = get_api_settings().auth.get_keys_with_subjects().get(api_key)
+        request.state.user_groups = get_api_settings().auth.get_keys_with_subject_groups().get(api_key, set())
 
         return await call_next(request)
 
@@ -650,3 +651,8 @@ def get_current_api_key(request: Request) -> Optional[str]:
 def get_current_user_id(request: Request) -> Optional[str]:
     """Return the subject explicitly bound to the authenticated API key."""
     return getattr(request.state, "user_id", None)
+
+
+def get_current_user_groups(request: Request) -> set[str]:
+    """Return policy groups bound to the authenticated API-key subject."""
+    return getattr(request.state, "user_groups", set())

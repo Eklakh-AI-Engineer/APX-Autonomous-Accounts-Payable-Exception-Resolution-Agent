@@ -31,9 +31,9 @@ class APIAuthSettings(BaseSettings):
             return result
         for item in self.api_keys.split(","):
             item = item.strip()
-            if ":" in item:
-                key, role, *_ = item.split(":", 2)
-                result[key.strip()] = role.strip()
+            parts = item.split(":")
+            if len(parts) >= 2:
+                result[parts[0].strip()] = parts[1].strip()
             else:
                 # Default to reader if no role specified
                 result[item] = "reader"
@@ -43,9 +43,18 @@ class APIAuthSettings(BaseSettings):
         """Return explicitly configured API-key to human-subject bindings."""
         result = {}
         for item in self.api_keys.split(","):
-            parts = [part.strip() for part in item.split(":", 2)]
-            if len(parts) == 3 and parts[0] and parts[1] == "approver" and parts[2]:
+            parts = [part.strip() for part in item.split(":", 3)]
+            if len(parts) >= 3 and parts[0] and parts[2]:
                 result[parts[0]] = parts[2]
+        return result
+
+    def get_keys_with_subject_groups(self) -> dict[str, set[str]]:
+        """Return configured authorization groups bound to each API key subject."""
+        result = {}
+        for item in self.api_keys.split(","):
+            parts = [part.strip() for part in item.split(":", 3)]
+            if len(parts) == 4 and parts[0] and parts[2] and parts[3]:
+                result[parts[0]] = {group.strip() for group in parts[3].split("|") if group.strip()}
         return result
 
 

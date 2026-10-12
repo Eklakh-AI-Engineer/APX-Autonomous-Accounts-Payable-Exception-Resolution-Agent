@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
 
@@ -25,7 +26,9 @@ class ApprovalService:
         self.case_repo = case_repo
         self.audit_repo = audit_repo
 
-    def approve_case(self, case_id: str, approver_id: str, notes: str = "") -> dict[str, Any]:
+    def approve_case(
+        self, case_id: str, approver_id: str, notes: str = "", approver_groups: set[str] | None = None
+    ) -> dict[str, Any]:
         """Approve a case."""
         # Get the approval for this case
         approval = self.approval_repo.get_by_case(UUID(case_id))
@@ -34,22 +37,21 @@ class ApprovalService:
 
         if approval.status != ApprovalStatus.PENDING:
             raise ValueError(f"Approval is not pending: {approval.status}")
+        if approval.revoked_at is not None:
+            raise ValueError("Approval has been revoked")
+        if approval.expires_at is not None and approval.expires_at <= datetime.utcnow():
+            raise ValueError("Approval has expired")
 
-        if approver_id not in (approval.required_approvers or []):
+        eligible = set(approval.required_approvers or [])
+        if approver_id not in eligible and not eligible.intersection(approver_groups or set()):
             raise ValueError("Approver is not authorized for this approval")
         if approver_id == approval.requested_by:
             raise ValueError("Requester cannot approve their own request")
 
-        # Record approval
-        self.approval_repo.add_approval(UUID(approval.approval_id), approver_id, True, notes)
-
-        # Update approval status
-        self.approval_repo.update_status(
-            UUID(approval.approval_id),
-            ApprovalStatus.APPROVED,
-            approver_id,
-            notes,
-        )
+        if not self.approval_repo.resolve(
+            UUID(approval.approval_id), ApprovalStatus.APPROVED, approver_id, notes
+        ):
+            raise ValueError("Approval is no longer pending, is expired, or has been revoked")
 
         # Update case status
         case = self.case_repo.get(UUID(case_id))
@@ -67,12 +69,19 @@ class ApprovalService:
                 "approver_id": approver_id,
                 "notes": notes,
             },
+            user_id=approver_id,
         )
 
         # Return updated approval
         return self.get_approval(case_id)
 
-    def reject_case(self, case_id: str, approver_id: str, notes: str) -> dict[str, Any]:
+    def reject_case(
+        self,
+        case_id: str,
+        approver_id: str,
+        notes: str,
+        approver_groups: set[str] | None = None,
+    ) -> dict[str, Any]:
         """Reject a case."""
         approval = self.approval_repo.get_by_case(UUID(case_id))
         if not approval:
@@ -80,22 +89,21 @@ class ApprovalService:
 
         if approval.status != ApprovalStatus.PENDING:
             raise ValueError(f"Approval is not pending: {approval.status}")
+        if approval.revoked_at is not None:
+            raise ValueError("Approval has been revoked")
+        if approval.expires_at is not None and approval.expires_at <= datetime.utcnow():
+            raise ValueError("Approval has expired")
 
-        if approver_id not in (approval.required_approvers or []):
+        eligible = set(approval.required_approvers or [])
+        if approver_id not in eligible and not eligible.intersection(approver_groups or set()):
             raise ValueError("Approver is not authorized for this approval")
         if approver_id == approval.requested_by:
             raise ValueError("Requester cannot reject their own request")
 
-        # Record rejection
-        self.approval_repo.add_approval(UUID(approval.approval_id), approver_id, False, notes)
-
-        # Update approval status
-        self.approval_repo.update_status(
-            UUID(approval.approval_id),
-            ApprovalStatus.REJECTED,
-            approver_id,
-            notes,
-        )
+        if not self.approval_repo.resolve(
+            UUID(approval.approval_id), ApprovalStatus.REJECTED, approver_id, notes
+        ):
+            raise ValueError("Approval is no longer pending, is expired, or has been revoked")
 
         # Update case status
         self.case_repo.update_status(UUID(case_id), "REJECTED", action_status="REJECTED")
@@ -111,6 +119,7 @@ class ApprovalService:
                 "approver_id": approver_id,
                 "notes": notes,
             },
+            user_id=approver_id,
         )
 
         # Return updated approval

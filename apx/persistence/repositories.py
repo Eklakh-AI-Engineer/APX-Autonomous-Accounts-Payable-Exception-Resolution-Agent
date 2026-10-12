@@ -162,6 +162,13 @@ class ApprovalRepository(ABC):
         """Record an individual approver's decision. Returns True if recorded."""
 
     @abstractmethod
+    def resolve(
+        self, approval_id: UUID, status: ApprovalStatus, approver_id: str,
+        notes: Optional[str] = None,
+    ) -> bool:
+        """Atomically transition a pending approval to a terminal decision."""
+
+    @abstractmethod
     def list_pending(self, limit: int = 100, offset: int = 0) -> List[ApprovalRequest]:
         """List pending approvals."""
 

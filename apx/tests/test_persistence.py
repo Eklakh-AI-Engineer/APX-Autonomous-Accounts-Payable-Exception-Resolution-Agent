@@ -662,6 +662,27 @@ class TestApprovalRepository:
         assert "reviewer2" in approval.approvals
         assert approval.approvals["reviewer2"] is False
 
+    def test_resolve_is_single_terminal_transition(self, clean_db, persisted_invoice):
+        """Only one caller can resolve a pending approval."""
+        repo = SQLiteApprovalRepository()
+        case_repo = SQLiteCaseRepository()
+        case_id = uuid4()
+        case_repo.create(case_id, "INV-RESOLVE-001", "V-0001")
+        from apx.action.models import ApprovalRequest, ApprovalStatus
+
+        approval_id = repo.create(ApprovalRequest(
+            action_plan_id=str(case_id),
+            action_type="ADJUST_PAYMENT",
+            risk_level="HIGH",
+            requested_by="requester-1",
+            required_approvers=["approver-1"],
+        ))
+        assert repo.resolve(approval_id, ApprovalStatus.APPROVED, "approver-1", "reviewed")
+        assert not repo.resolve(approval_id, ApprovalStatus.REJECTED, "approver-2", "race")
+        resolved = repo.get(approval_id)
+        assert resolved.status == ApprovalStatus.APPROVED
+        assert resolved.resolved_by == "approver-1"
+
     def test_list_pending(self, clean_db, persisted_invoice):
         """Test listing pending approvals."""
         repo = SQLiteApprovalRepository()
@@ -1106,7 +1127,6 @@ class TestConcurrency:
         """Test concurrent case creation with different IDs."""
         def create_case(index: int, errors: list):
             try:
-                init_database(database_url=temp_db, create_tables=False)
                 case_repo = SQLiteCaseRepository()
                 invoice_repo = SQLiteInvoiceRepository()
                 case_id = uuid4()
@@ -1141,12 +1161,12 @@ class TestConcurrency:
             t.start()
 
         for t in threads:
-            t.join(timeout=5)
+            t.join(timeout=30)
+            assert not t.is_alive(), "case creation worker did not finish"
 
         assert len(errors) == 0
 
         # Verify all cases created
-        init_database(database_url=temp_db, create_tables=False)
         case_repo = SQLiteCaseRepository()
         cases = case_repo.list_all(limit=20)
         assert len(cases) == 10
@@ -1157,7 +1177,6 @@ class TestConcurrency:
         
         def update_approval(index: int, errors: list):
             try:
-                init_database(database_url=temp_db, create_tables=False)
                 repo = SQLiteApprovalRepository()
                 # All threads try to add approval to the same pre-created approval request
                 repo.add_approval(approval_id, f"reviewer{index % 2 + 1}", True)
@@ -1206,7 +1225,8 @@ class TestConcurrency:
             t.start()
 
         for t in threads:
-            t.join(timeout=5)
+            t.join(timeout=30)
+            assert not t.is_alive(), "approval worker did not finish"
 
         assert len(errors) == 0
 
