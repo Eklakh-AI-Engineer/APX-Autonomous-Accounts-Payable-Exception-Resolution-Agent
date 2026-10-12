@@ -28,3 +28,10 @@ Snapshot: `codex/v1-release-audit`, latest branch head `e9f56ffc3a34047b277d8e18
 - Authorized deployment environment and credentials.
 - Monitoring provider/receiver and named alert responders.
 - Backup destination, retention, RPO/RTO, and isolated restore target.
+
+## Latest evidence-chain update
+
+- Latest branch head after audit/scoreboard reconciliation: `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (documentation/evidence commit).
+- Latest-head CI run #94 (`38229883761`) passed: API suite 61 passed/1 skipped; full suite 423 passed/1 skipped; configured Ruff passed; deterministic benchmark completed.
+- Benchmark metrics and per-case comparison remain from tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, benchmark run #91 (`38228330768`), artifact `benchmark_dev_20261012_091921.json`. They are not attributed to the documentation commit.
+- Release remains `BLOCKED`; the PR stays draft/unmerged and live financial dispatch stays disabled.
