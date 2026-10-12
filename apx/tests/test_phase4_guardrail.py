@@ -186,6 +186,8 @@ class TestActionGuardrail:
         assert result.decision.value == "ALLOW"
         assert result.requires_approval is True
         assert result.approval_status.value == "PENDING"
+        assert result.required_approvals == ["human_review"]
+        assert "requires human approval" in result.approval_reason.lower()
 
     def test_guardrail_blocks_critical_risk(self):
         """Test guardrail blocks critical risk for all actions."""
