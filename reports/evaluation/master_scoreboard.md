@@ -1,6 +1,6 @@
 # Master scoreboard
 
-**Status: current DEV run passed its narrow implemented gates; release quality acceptance remains blocked.** Latest branch head `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` passed CI #94 (`38229883761`): API 61 passed, 1 skipped; full suite 423 passed, 1 skipped; configured Ruff passed; deterministic benchmark completed. Benchmark code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39` passed push CI #91 (`38228330768`) and PR CI #92 (`38228335549`). Fresh benchmark output `benchmark_dev_20261012_091921.json`, DEV, seed 42, effective pinned reference date 2026-08-29, 500 synthetic structured invoices. Artifact: [CI benchmark evidence](https://github.com/Eklakh-AI-Engineer/APX-Autonomous-Accounts-Payable-Exception-Resolution-Agent/actions/runs/38228330768/artifacts/11738111338).
+**Status: current DEV run passed its narrow implemented gates; release quality acceptance remains blocked.** Benchmark code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39` passed push CI #91 (`38228330768`) and PR CI #92 (`38228335549`): API 61 passed/1 skipped, full suite 423 passed/1 skipped, configured Ruff and deterministic benchmark passed. Run #94 (`38229883761`) then passed on code/evidence head `e9f56ffc3a34047b277d8e18afe6fcae5de366d2`. Subsequent documentation-only commits are tracked separately; verify the live PR head's CI before claiming those commits are verified. Fresh benchmark output `benchmark_dev_20261012_091921.json`, DEV, seed 42, effective pinned reference date 2026-08-29, 500 synthetic structured invoices. Artifact: [CI benchmark evidence](https://github.com/Eklakh-AI-Engineer/APX-Autonomous-Accounts-Payable-Exception-Resolution-Agent/actions/runs/38228330768/artifacts/11738111338).
 
 | Current candidate measure | Result | Acceptance interpretation |
 |---|---:|---|
@@ -45,10 +45,9 @@ The current benchmark reports `passed: true` because its implemented gates cover
 
 Tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39` (push run `38228330768` and PR run `38228335549` passed): eval data SHA-256 `177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd`; evidence corpus SHA-256 `09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86`. Structural inspection found 10 unique evaluation IDs, 235 unique evidence IDs, no duplicate IDs, and no missing references. The available schema has no reviewer/adjudication provenance or invoice/job mappings; this is integrity evidence only. Human-reviewed acceptance remains blocked.
 
-## Latest evidence-chain update
+## Evidence-chain status
 
-- Latest verified code/evidence head: `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (the supplied benchmark evidence was run on `9179840cd029120e4d019ad421b91a1a5ea25d39`).
-- Latest-head CI run #94 (`38229883761`) passed: API suite 61 passed/1 skipped; full suite 423 passed/1 skipped; configured Ruff passed; deterministic benchmark completed.
-- Benchmark metrics and per-case comparison remain from tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, benchmark run #91 (`38228330768`), artifact `benchmark_dev_20261012_091921.json`. They are not attributed to the documentation commit.
-- Release remains `BLOCKED`; the PR stays draft/unmerged and live financial dispatch stays disabled.
-- Latest evidence metadata head: `a6e792e01f10c2341afd5e3f51d912fce4a2a445`; CI run `38231282711` was queued at the time of record. Re-verify its conclusion before relying on this metadata-only update as CI-cleared.
+- Current metadata synchronization is based on branch head `149a47f6915042efc6cad80a9b9cf6643746673d`; it changes audit/scoreboard documentation only.
+- Latest benchmarked code/evaluator candidate: `9179840cd029120e4d019ad421b91a1a5ea25d39`, run #91 (`38228330768`), artifact `benchmark_dev_20261012_091921.json`. Its numbers remain attributed to that code candidate, not to documentation commits.
+- Latest completed CI previously verified the metadata/code continuation at `e9f56ffc3a34047b277d8e18afe6fcae5de366d2`, run #94 (`38229883761`): API 61 passed/1 skipped, full suite 423 passed/1 skipped, configured Ruff passed, benchmark completed. Subsequent documentation commits trigger separate CI; verify the current PR head's check result before stating those commits passed.
+- Release acceptance remains `BLOCKED`; preserve PR #4 as draft and unmerged, do not tag `v1.0.0`, and keep live financial dispatch disabled.

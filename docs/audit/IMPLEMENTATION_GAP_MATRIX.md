@@ -1,6 +1,6 @@
 # Implementation gap matrix
 
-Snapshot: `codex/v1-release-audit`, latest branch head `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (documentation/evidence-only follow-up), tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, based on requested candidate `5c738a093edfb529245b2aea405d4583f345032d`; PR base `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`. Push CI run `38228330768` (#91) and PR CI run `38228335549` (#92) passed on tested candidate; docs snapshot will be a later commit. Source implementation, runtime evidence, and external prerequisites are tracked separately.
+Snapshot: `codex/v1-release-audit`, latest benchmarked code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, with later documentation-only synchronization; based on requested candidate `5c738a093edfb529245b2aea405d4583f345032d`; PR base `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`. Push CI run `38228330768` (#91) and PR CI run `38228335549` (#92) passed on tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`. Documentation-only follow-up commits require their own CI check verification. Source implementation, runtime evidence, and external prerequisites are tracked separately.
 
 | Requirement | Source status | Runtime / acceptance evidence | Remaining gap | Status |
 |---|---|---|---|---|
@@ -29,10 +29,9 @@ Snapshot: `codex/v1-release-audit`, latest branch head `e9f56ffc3a34047b277d8e18
 - Monitoring provider/receiver and named alert responders.
 - Backup destination, retention, RPO/RTO, and isolated restore target.
 
-## Latest evidence-chain update
+## Evidence-chain status
 
-- Latest verified code/evidence head: `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (the supplied benchmark evidence was run on `9179840cd029120e4d019ad421b91a1a5ea25d39`).
-- Latest-head CI run #94 (`38229883761`) passed: API suite 61 passed/1 skipped; full suite 423 passed/1 skipped; configured Ruff passed; deterministic benchmark completed.
-- Benchmark metrics and per-case comparison remain from tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, benchmark run #91 (`38228330768`), artifact `benchmark_dev_20261012_091921.json`. They are not attributed to the documentation commit.
-- Release remains `BLOCKED`; the PR stays draft/unmerged and live financial dispatch stays disabled.
-- Latest evidence metadata head: `a6e792e01f10c2341afd5e3f51d912fce4a2a445`; CI run `38231282711` was queued at the time of record. Re-verify its conclusion before relying on this metadata-only update as CI-cleared.
+- Current metadata synchronization is based on branch head `149a47f6915042efc6cad80a9b9cf6643746673d`; it changes audit/scoreboard documentation only.
+- Latest benchmarked code/evaluator candidate: `9179840cd029120e4d019ad421b91a1a5ea25d39`, run #91 (`38228330768`), artifact `benchmark_dev_20261012_091921.json`. Its numbers remain attributed to that code candidate, not to documentation commits.
+- Latest completed CI previously verified the metadata/code continuation at `e9f56ffc3a34047b277d8e18afe6fcae5de366d2`, run #94 (`38229883761`): API 61 passed/1 skipped, full suite 423 passed/1 skipped, configured Ruff passed, benchmark completed. Subsequent documentation commits trigger separate CI; verify the current PR head's check result before stating those commits passed.
+- Release acceptance remains `BLOCKED`; preserve PR #4 as draft and unmerged, do not tag `v1.0.0`, and keep live financial dispatch disabled.

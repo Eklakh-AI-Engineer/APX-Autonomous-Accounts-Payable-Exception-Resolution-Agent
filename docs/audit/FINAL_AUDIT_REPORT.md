@@ -1,6 +1,6 @@
 # Release candidate audit — release blocked
 
-Audit date: 2026-10-12. Candidate branch: `codex/v1-release-audit`. Latest branch head: `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (documentation/evidence commit); tested code candidate: `9179840cd029120e4d019ad421b91a1a5ea25d39`. CI run #94 (`38229883761`) passed on the latest branch head: API suite 61 passed/1 skipped, full suite 423 passed/1 skipped, configured Ruff and deterministic benchmark succeeded. The benchmark itself was executed on `9179840` in run #91 (`38228330768`) and is not re-attributed to the docs-only head. Documentation update commit follows these checks and will receive its own CI. Durable ledger implementation commit: `97c24cd2f193813a936c38ea2e08f20d61e19582`. Requested candidate baseline: `5c738a093edfb529245b2aea405d4583f345032d`; PR base: `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`.
+Audit date: 2026-10-12. Candidate branch: `codex/v1-release-audit`. Latest benchmarked code candidate: `9179840cd029120e4d019ad421b91a1a5ea25d39`; benchmark run #91 (`38228330768`) produced `benchmark_dev_20261012_091921.json`. The report/scoreboard synchronization is documentation-only; verify CI for the current branch head separately. Durable ledger implementation commit: `97c24cd2f193813a936c38ea2e08f20d61e19582`. Requested candidate baseline: `5c738a093edfb529245b2aea405d4583f345032d`; PR base: `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`.
 
 ## Decision
 
@@ -40,10 +40,9 @@ Audit date: 2026-10-12. Candidate branch: `codex/v1-release-audit`. Latest branc
 
 See [implementation gap matrix](IMPLEMENTATION_GAP_MATRIX.md), [benchmark gate](../../reports/evaluation/benchmark_gate.json), and [release checklist](../release/RELEASE_CHECKLIST.md).
 
-## Latest evidence-chain update
+## Evidence-chain status
 
-- Latest verified code/evidence head: `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (the supplied benchmark evidence was run on `9179840cd029120e4d019ad421b91a1a5ea25d39`).
-- Latest-head CI run #94 (`38229883761`) passed: API suite 61 passed/1 skipped; full suite 423 passed/1 skipped; configured Ruff passed; deterministic benchmark completed.
-- Benchmark metrics and per-case comparison remain from tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, benchmark run #91 (`38228330768`), artifact `benchmark_dev_20261012_091921.json`. They are not attributed to the documentation commit.
-- Release remains `BLOCKED`; the PR stays draft/unmerged and live financial dispatch stays disabled.
-- Latest evidence metadata head: `a6e792e01f10c2341afd5e3f51d912fce4a2a445`; CI run `38231282711` was queued at the time of record. Re-verify its conclusion before relying on this metadata-only update as CI-cleared.
+- Current metadata synchronization is based on branch head `149a47f6915042efc6cad80a9b9cf6643746673d`; it changes audit/scoreboard documentation only.
+- Latest benchmarked code/evaluator candidate: `9179840cd029120e4d019ad421b91a1a5ea25d39`, run #91 (`38228330768`), artifact `benchmark_dev_20261012_091921.json`. Its numbers remain attributed to that code candidate, not to documentation commits.
+- Latest completed CI previously verified the metadata/code continuation at `e9f56ffc3a34047b277d8e18afe6fcae5de366d2`, run #94 (`38229883761`): API 61 passed/1 skipped, full suite 423 passed/1 skipped, configured Ruff passed, benchmark completed. Subsequent documentation commits trigger separate CI; verify the current PR head's check result before stating those commits passed.
+- Release acceptance remains `BLOCKED`; preserve PR #4 as draft and unmerged, do not tag `v1.0.0`, and keep live financial dispatch disabled.
