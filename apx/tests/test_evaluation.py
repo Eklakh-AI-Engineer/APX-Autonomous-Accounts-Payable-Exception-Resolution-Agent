@@ -577,6 +577,8 @@ class TestActionEvaluator:
             _create_test_ground_truth("INV-BLOCK-TRUE", [ExceptionCode.AMOUNT_MISMATCH]),
             _create_test_ground_truth("INV-BLOCK-FALSE", [ExceptionCode.AMOUNT_MISMATCH]),
         ]
+        truths[0].expected_decision = "AUTO_APPROVE"
+        truths[1].expected_decision = "AUTO_APPROVE"
         results = evaluator.evaluate_batch(
             plans,
             [_create_test_action_result(False), _create_test_action_result(False)],
