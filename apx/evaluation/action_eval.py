@@ -16,6 +16,10 @@ class ActionMetrics:
     correct_actions: int = 0
     action_accuracy: float = 0.0
     action_evaluation_cases: int = 0
+    action_type_correct: int = 0
+    action_type_accuracy: float = 0.0
+    execution_successes: int = 0
+    execution_success_rate: float = 0.0
 
     # Guardrail metrics
     guardrail_decisions: int = 0
@@ -189,6 +193,10 @@ class ActionEvaluator:
 
         action_success = bool(action_result and action_result.success)
         action_type_correct = action_type == expected_action if expected_action else False
+        if action_success:
+            metrics.execution_successes += 1
+        if expected_action is not None and action_type_correct:
+            metrics.action_type_correct += 1
         if action_success and action_type_correct:
             metrics.correct_actions += 1
             metrics.per_action_type[action_type]["correct"] += 1
@@ -278,6 +286,8 @@ class ActionEvaluator:
             aggregate.total_actions += m.total_actions
             aggregate.correct_actions += m.correct_actions
             aggregate.action_evaluation_cases += m.action_evaluation_cases
+            aggregate.action_type_correct += m.action_type_correct
+            aggregate.execution_successes += m.execution_successes
             aggregate.guardrail_decisions += m.guardrail_decisions
             aggregate.guardrail_correct += m.guardrail_correct
             aggregate.unauthorized_actions += m.unauthorized_actions
@@ -348,7 +358,11 @@ class ActionEvaluator:
         # Compute aggregate rates
         if aggregate.action_evaluation_cases > 0:
             aggregate.action_accuracy = aggregate.correct_actions / aggregate.action_evaluation_cases
+            aggregate.action_type_accuracy = (
+                aggregate.action_type_correct / aggregate.action_evaluation_cases
+            )
         if aggregate.total_actions > 0:
+            aggregate.execution_success_rate = aggregate.execution_successes / aggregate.total_actions
             aggregate.unauthorized_action_rate = aggregate.unauthorized_actions / aggregate.total_actions
 
         if aggregate.guardrail_decisions > 0:
