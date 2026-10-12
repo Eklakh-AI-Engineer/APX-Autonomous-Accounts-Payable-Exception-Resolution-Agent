@@ -1,12 +1,12 @@
 {
   "status": "BLOCKED",
-  "reason": "Fresh deterministic DEV benchmark on candidate 7e620e7 passed its narrow configured gates, but quality acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance/mappings, and unmeasured extraction.",
-  "candidate_commit": "7e620e7b5acabfe8ec374f72af11bfa157273bdd",
-  "ci_run": "38217304451",
-  "fresh_result": "benchmark_dev_20261012_072759.json",
+  "reason": "Fresh deterministic DEV benchmark on candidate 6ef5c79 passed its narrow configured gates, but quality acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance/mappings, and unmeasured extraction.",
+  "candidate_commit": "6ef5c793bdc16379f04c89cdb450ee53269e0db3",
+  "ci_run": "38221013159",
+  "fresh_result": "benchmark_dev_20261012_080736.json",
   "fresh_run_status": "configured_gates_passed_quality_acceptance_blocked",
   "historical_result": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
-  "fresh_run_required": true,
+  "fresh_run_required": false,
   "required_checks": [
     "Validate the frozen dataset schema and SHA-256 before execution",
     "Run deterministic DEV benchmark with seed 42 and pinned reference date",

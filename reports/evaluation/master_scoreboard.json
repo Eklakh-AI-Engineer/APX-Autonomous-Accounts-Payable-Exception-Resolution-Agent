@@ -1,7 +1,7 @@
 {
   "status": "fresh DEV benchmark passed narrow configured gates; release acceptance blocked",
-  "source": "CI run 38217304451 artifact benchmark_dev_20261012_072759.json",
-  "captured_at": "2026-10-12T07:27:59Z",
+  "source": "CI run 38221013159 artifact benchmark_dev_20261012_080736.json",
+  "captured_at": "2026-10-12T08:07:36Z",
   "tier": "dev",
   "seed": 42,
   "reference_date": "2026-08-29",
@@ -50,8 +50,8 @@
     "Frozen retrieval labels have no reviewer/adjudication provenance or invoice/job mapping."
   ],
   "candidate_integrity_check": {
-    "commit": "7e620e7b5acabfe8ec374f72af11bfa157273bdd",
-    "ci_run": "38217304451",
+    "commit": "6ef5c793bdc16379f04c89cdb450ee53269e0db3",
+    "ci_run": "38221013159",
     "ci_status": "success",
     "eval_dataset_sha256": "177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd",
     "evidence_corpus_sha256": "09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86",
@@ -65,9 +65,9 @@
     "acceptance_status": "BLOCKED"
   },
   "current_candidate_run": {
-    "commit": "7e620e7b5acabfe8ec374f72af11bfa157273bdd",
-    "ci_run": "38217304451",
-    "artifact": "benchmark_dev_20261012_072759.json",
+    "commit": "6ef5c793bdc16379f04c89cdb450ee53269e0db3",
+    "ci_run": "38221013159",
+    "artifact": "benchmark_dev_20261012_080736.json",
     "tier": "dev",
     "seed": 42,
     "reference_date": "2026-08-29",
@@ -116,9 +116,15 @@
         "decision_mismatch": 189,
         "risk_mismatch": 35,
         "escalation_mismatch": 163
-      }
+      },
+      "action_completion_accuracy": 0.496,
+      "action_completion_correct": 248,
+      "action_type_accuracy": 0.622,
+      "action_type_correct": 311,
+      "execution_success_rate": 0.496,
+      "execution_successes": 248
     },
-    "quality_disposition": "BLOCKED: weak action, approval requirement, guardrail, decision, and evidence-validity metrics; benchmark gate omits these measures; no human-review provenance; extraction not measured",
+    "quality_disposition": "BLOCKED: weak action completion, action type, approval requirement, guardrail, decision, and evidence-validity metrics; benchmark gate omits these measures; no human-review provenance; extraction not measured",
     "average_latency_ms": 119.1
   }
 }
