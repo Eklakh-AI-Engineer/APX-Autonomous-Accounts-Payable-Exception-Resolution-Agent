@@ -1,9 +1,9 @@
 {
   "status": "BLOCKED",
-  "reason": "Fresh deterministic DEV benchmark on candidate 6ef5c79 passed its narrow configured gates, but quality acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance/mappings, and unmeasured extraction.",
-  "candidate_commit": "6ef5c793bdc16379f04c89cdb450ee53269e0db3",
-  "ci_run": "38221013159",
-  "fresh_result": "benchmark_dev_20261012_080736.json",
+  "reason": "Fresh deterministic DEV benchmark on candidate 37e61bd passed its narrow configured gates, but quality acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance/mappings, and unmeasured extraction.",
+  "candidate_commit": "37e61bd21f9d121e08e04462afa3063030989f6d",
+  "ci_run": "38223749502",
+  "fresh_result": "benchmark_dev_20261012_083441.json",
   "fresh_run_status": "configured_gates_passed_quality_acceptance_blocked",
   "historical_result": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
   "fresh_run_required": false,

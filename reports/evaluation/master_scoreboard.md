@@ -1,6 +1,6 @@
 # Master scoreboard
 
-**Status: current DEV run passed its narrow implemented gates; release quality acceptance remains blocked.** Latest CI-verified code commit `6ef5c793bdc16379f04c89cdb450ee53269e0db3`; CI push run `38221013159` (run 81) and PR run `38221018889` (run 82) succeeded: full suite 421 passed, 1 skipped. Output `benchmark_dev_20261012_080736.json`, DEV, seed 42, reference date 2026-08-29, 500 synthetic structured invoices. Artifact: [CI benchmark evidence](https://github.com/Eklakh-AI-Engineer/APX-Autonomous-Accounts-Payable-Exception-Resolution-Agent/actions/runs/38221013159/artifacts/11734303505).
+**Status: current DEV run passed its narrow implemented gates; release quality acceptance remains blocked.** Latest CI-verified code commit `37e61bd21f9d121e08e04462afa3063030989f6d`; CI push run `38223749502` (run 81) and PR run `38223756416` (run 82) succeeded: full suite 421 passed, 1 skipped. Output `benchmark_dev_20261012_083441.json`, DEV, seed 42, reference date 2026-08-29, 500 synthetic structured invoices. Artifact: [CI benchmark evidence](https://github.com/Eklakh-AI-Engineer/APX-Autonomous-Accounts-Payable-Exception-Resolution-Agent/actions/runs/38223749502/artifacts/11734749508).
 
 | Current candidate measure | Result | Acceptance interpretation |
 |---|---:|---|
@@ -43,4 +43,4 @@ The current benchmark reports `passed: true` because its implemented gates cover
 
 ## Current candidate integrity and gate status
 
-Candidate `6ef5c793bdc16379f04c89cdb450ee53269e0db3` (push run `38221013159` passed): eval data SHA-256 `177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd`; evidence corpus SHA-256 `09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86`. Structural inspection found 10 unique evaluation IDs, 235 unique evidence IDs, no duplicate IDs, and no missing references. The available schema has no reviewer/adjudication provenance or invoice/job mappings; this is integrity evidence only. Human-reviewed acceptance remains blocked.
+Candidate `37e61bd21f9d121e08e04462afa3063030989f6d` (push run `38223749502` passed): eval data SHA-256 `177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd`; evidence corpus SHA-256 `09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86`. Structural inspection found 10 unique evaluation IDs, 235 unique evidence IDs, no duplicate IDs, and no missing references. The available schema has no reviewer/adjudication provenance or invoice/job mappings; this is integrity evidence only. Human-reviewed acceptance remains blocked.
