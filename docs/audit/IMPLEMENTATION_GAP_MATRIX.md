@@ -1,6 +1,6 @@
 # Implementation gap matrix
 
-Snapshot: `codex/v1-release-audit`, tested candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, based on requested candidate `5c738a093edfb529245b2aea405d4583f345032d`; PR base `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`. Push CI run `38228330768` (#91) and PR CI run `38228335549` (#92) passed on tested candidate; docs snapshot will be a later commit. Source implementation, runtime evidence, and external prerequisites are tracked separately.
+Snapshot: `codex/v1-release-audit`, latest branch head `e9f56ffc3a34047b277d8e18afe6fcae5de366d2` (documentation/evidence-only follow-up), tested code candidate `9179840cd029120e4d019ad421b91a1a5ea25d39`, based on requested candidate `5c738a093edfb529245b2aea405d4583f345032d`; PR base `0b6f30ed3a45db3f277cfe4179758d90a8aa593b`. Push CI run `38228330768` (#91) and PR CI run `38228335549` (#92) passed on tested candidate; docs snapshot will be a later commit. Source implementation, runtime evidence, and external prerequisites are tracked separately.
 
 | Requirement | Source status | Runtime / acceptance evidence | Remaining gap | Status |
 |---|---|---|---|---|
