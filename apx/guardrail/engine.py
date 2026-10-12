@@ -408,25 +408,27 @@ class ActionGuardrail:
     def _check_investigation_outcome(self, investigation_result: Any, action_type: str) -> GuardrailCheckResult:
         """Check if investigation outcome is compatible with action."""
         outcome = investigation_result.outcome
+        outcome_value = getattr(outcome, "value", outcome)
+        action_value = getattr(action_type, "value", action_type)
+        incompatible_actions = {"AUTO_RESOLVE", "ADJUST_PAYMENT", "VOID_INVOICE"}
         
-        if outcome == "ESCALATE" and action_type in ["AUTO_RESOLVE", "ADJUST_PAYMENT", "VOID_INVOICE"]:
+        if (
+            outcome_value in {"ESCALATE", "REQUEST_INFO"}
+            and action_value in incompatible_actions
+        ):
             return GuardrailCheckResult(
                 check_name="investigation_outcome_compatible",
                 passed=False,
-                reason=f"Investigation outcome ESCALATE incompatible with action {action_type}",
-                severity="ERROR",
-            )
-        elif outcome == "REQUEST_INFO" and action_type in ["AUTO_RESOLVE", "ADJUST_PAYMENT", "VOID_INVOICE"]:
-            return GuardrailCheckResult(
-                check_name="investigation_outcome_compatible",
-                passed=False,
-                reason=f"Investigation outcome REQUEST_INFO incompatible with action {action_type}",
+                reason=(
+                    f"Investigation outcome {outcome_value} incompatible "
+                    f"with action {action_value}"
+                ),
                 severity="ERROR",
             )
         return GuardrailCheckResult(
             check_name="investigation_outcome_compatible",
             passed=True,
-            reason=f"Investigation outcome compatible with action",
+            reason="Investigation outcome compatible with action",
             severity="INFO",
         )
 
