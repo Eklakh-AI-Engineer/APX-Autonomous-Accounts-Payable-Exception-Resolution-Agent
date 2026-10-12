@@ -320,6 +320,15 @@ class TestRetrievalEvaluator:
         assert result.total_queries == 1
         assert result.per_query[0]["valid_count"] == 1
         assert result.per_query[0]["candidate_count"] == 1
+        assert result.per_query[0]["validity_status_counts"] == {"valid": 1}
+
+    def test_retrieval_validity_diagnostics_preserve_invalid_status_categories(self):
+        evidence_set = _create_test_evidence_set("INV-STALE")
+        evidence_set.validated_evidence[0].validity_status = ValidityStatus.STALE
+        result = RetrievalEvaluator().evaluate(evidence_set, set(), set(), set())
+        assert result.per_query[0]["valid_count"] == 0
+        assert result.per_query[0]["candidate_count"] == 1
+        assert result.per_query[0]["validity_status_counts"] == {"stale": 1}
 
     def test_retrieval_mrr(self):
         """Test MRR calculation with relevant at rank 3."""

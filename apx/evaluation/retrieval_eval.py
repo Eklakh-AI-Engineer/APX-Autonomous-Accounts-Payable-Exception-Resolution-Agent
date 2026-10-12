@@ -58,6 +58,7 @@ class RetrievalEvaluator:
                 "invalid_count": 0,
                 "invalid_label_count": len(invalid_ids),
                 "vendor_scope_correct_count": 0,
+                "validity_status_counts": {},
             }], invalid_evidence_rejection_rate=(1.0 if invalid_ids else 0.0),
                 invalid_rejection_query_count=(1 if invalid_ids else 0))
 
@@ -102,6 +103,11 @@ class RetrievalEvaluator:
             for candidate in candidates
             if validity_by_id.get(candidate.evidence.evidence_id) == ValidityStatus.VALID
         )
+        validity_status_counts: Dict[str, int] = {}
+        for candidate in candidates:
+            status = validity_by_id.get(candidate.evidence.evidence_id)
+            status_name = getattr(status, "value", None) or "missing_validation_status"
+            validity_status_counts[status_name] = validity_status_counts.get(status_name, 0) + 1
         valid_evidence_rate = valid_count / total_candidates if total_candidates else 0.0
 
         # Invalid evidence rejection rate
@@ -135,6 +141,7 @@ class RetrievalEvaluator:
                 "invalid_count": invalid_in_results,
                 "invalid_label_count": total_invalid,
                 "vendor_scope_correct_count": vendor_correct,
+                "validity_status_counts": validity_status_counts,
             }],
             valid_evidence_rate=valid_evidence_rate,
             invalid_evidence_rejection_rate=invalid_evidence_rejection_rate,

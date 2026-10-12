@@ -531,6 +531,22 @@ class BenchmarkOrchestrator:
                 "",
             ])
 
+        if result.retrieval and result.retrieval.per_query:
+            lines.extend([
+                "Per-query retrieval evidence validity (curated query denominators):",
+                f"  Queries: {result.retrieval.total_queries}; invalid-rejection query denominator: {result.retrieval.invalid_rejection_query_count}",
+            ])
+            for query in result.retrieval.per_query:
+                status_counts = query.get("validity_status_counts", {})
+                status_summary = ", ".join(
+                    f"{status}={count}" for status, count in sorted(status_counts.items())
+                ) or "no retrieved candidates"
+                lines.append(
+                    f"  {query['query_id']}: valid={query['valid_count']}/{query['candidate_count']} candidates; "
+                    f"invalid_labels={query['invalid_label_count']}; statuses={status_summary}"
+                )
+            lines.append("")
+
         if result.action and result.action.per_case:
             error_cases = [case for case in result.action.per_case if case.get("errors")]
             execution_failures = [case for case in result.action.per_case if case.get("action_success") is False]
