@@ -318,6 +318,8 @@ class TestRetrievalEvaluator:
         assert result.recall_at_10 == 1.0
         assert result.mrr == 1.0  # First result is relevant
         assert result.total_queries == 1
+        assert result.per_query[0]["valid_count"] == 1
+        assert result.per_query[0]["candidate_count"] == 1
 
     def test_retrieval_mrr(self):
         """Test MRR calculation with relevant at rank 3."""
@@ -389,6 +391,29 @@ class TestRetrievalEvaluator:
         result = evaluator.evaluate(evidence_set, relevant, set(), invalid)
 
         # No invalid evidence in results = perfect rejection
+        assert result.invalid_evidence_rejection_rate == 1.0
+
+    def test_empty_retrieval_query_is_counted_and_invalid_labels_are_rejected(self):
+        evidence_set = _create_test_evidence_set("INV-EMPTY")
+        evidence_set.candidates = []
+        result = RetrievalEvaluator().evaluate(evidence_set, set(), set(), {"EV-INVALID"})
+        assert result.total_queries == 1
+        assert result.per_query[0]["candidate_count"] == 0
+        assert result.per_query[0]["valid_count"] == 0
+        assert result.invalid_evidence_rejection_rate == 1.0
+        assert result.invalid_rejection_query_count == 1
+
+    def test_batch_rejection_denominator_excludes_queries_without_invalid_labels(self):
+        labeled = _create_test_evidence_set("INV-LABELED")
+        labeled.candidates = []
+        unlabeled = _create_test_evidence_set("INV-UNLABELED")
+        unlabeled.candidates = []
+        result = RetrievalEvaluator().evaluate_batch(
+            [labeled, unlabeled],
+            {"INV-LABELED": {"invalid": {"EV-MISSING"}}, "INV-UNLABELED": {}},
+        )
+        assert result.total_queries == 2
+        assert result.invalid_rejection_query_count == 1
         assert result.invalid_evidence_rejection_rate == 1.0
 
     def test_retrieval_vendor_scope(self):
