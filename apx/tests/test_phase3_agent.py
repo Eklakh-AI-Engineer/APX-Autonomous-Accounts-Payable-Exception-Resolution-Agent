@@ -52,6 +52,40 @@ class TestMockLLMProvider:
         provider.investigate("test", [], "INVESTIGATING", 5)
         assert provider.get_call_count() == 2
     
+
+    def test_mock_follows_synthetic_decision_contract_for_exception_cases(self):
+        provider = MockLLMProvider()
+        findings = provider.investigate(
+            exception_report="Invoice INV-001\\nExceptions:\\n  - CURRENCY_MISMATCH: Currency differs",
+            evidence_summaries=[],
+            current_state="INVESTIGATING",
+            budget_remaining=5,
+        )
+        assert findings.proposed_outcome == "REQUEST_INFO"
+        assert findings.confidence >= 0.7
+
+    def test_mock_resolves_clean_synthetic_case(self):
+        provider = MockLLMProvider()
+        findings = provider.investigate(
+            exception_report="Invoice INV-002\\nExceptions:",
+            evidence_summaries=[],
+            current_state="INVESTIGATING",
+            budget_remaining=5,
+        )
+        assert findings.proposed_outcome == "RESOLVE"
+
+    def test_mock_accepts_serialized_validity_enum_case_insensitively(self):
+        provider = MockLLMProvider()
+        findings = provider.investigate(
+            exception_report="Invoice INV-003\\nExceptions:\\n  - AMOUNT_MISMATCH: Amount differs",
+            evidence_summaries=[
+                {"evidence_id": "EV-001", "validity_status": "VALID", "relevance_score": 0.9}
+            ],
+            current_state="INVESTIGATING",
+            budget_remaining=5,
+        )
+        assert findings.evidence_ids == ["EV-001"]
+
     def test_invalid_provider_implementation(self):
         """Test that abstract base class cannot be instantiated."""
         with pytest.raises(TypeError):
