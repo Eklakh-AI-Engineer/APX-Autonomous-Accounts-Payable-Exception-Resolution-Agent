@@ -129,6 +129,20 @@ class ApprovalService:
         # Return updated approval
         return self.get_approval(case_id)
 
+    def revoke_case(self, case_id: str, actor_id: str, notes: str = "") -> dict[str, Any]:
+        """Revoke an outstanding grant with a durable, identity-bearing audit event."""
+        approval = self.approval_repo.get_by_case(UUID(case_id))
+        if not approval:
+            raise ValueError(f"No approval found for case {case_id}")
+        if not self.approval_repo.revoke(UUID(approval.approval_id), actor_id, notes):
+            raise ValueError("Approval is already resolved, revoked, or unavailable")
+        self.audit_repo.log(
+            case_id=UUID(case_id), event_type="APPROVAL_REVOKED", phase="phase4",
+            component="approval_service", payload={"approval_id": approval.approval_id, "notes": notes},
+            user_id=actor_id,
+        )
+        return self.get_approval(case_id)
+
     def get_approval(self, case_id: str) -> Optional[dict[str, Any]]:
         """Get approval for a case."""
         from apx.persistence.sqlite_repos import SQLiteApprovalRepository
@@ -169,4 +183,6 @@ class ApprovalService:
                 "resolved_by": orm.resolved_by,
                 "resolved_at": orm.resolved_at,
                 "notes": orm.notes,
+                "expires_at": orm.expires_at,
+                "revoked_at": orm.revoked_at,
             }

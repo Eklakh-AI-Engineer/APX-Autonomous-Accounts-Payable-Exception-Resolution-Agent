@@ -193,6 +193,15 @@ class ActionORM(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="PENDING")
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(64), unique=True, index=True, nullable=True)
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    action_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    evidence_digest: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    policy_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    claim_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    lease_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    downstream_reference: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    next_retry_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    dead_lettered_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     result_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(SQLiteJSON, nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     executed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -208,6 +217,25 @@ class ActionORM(Base):
         Index("ix_actions_status", "status"),
         Index("ix_actions_type_status", "action_type", "status"),
     )
+
+
+class ActionAttemptORM(Base):
+    """Durable dispatch attempt journal; payloads and provider secrets are excluded."""
+
+    __tablename__ = "action_attempts"
+
+    attempt_id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    action_id: Mapped[UUID] = mapped_column(
+        ForeignKey("actions.action_id", ondelete="RESTRICT"), index=True, nullable=False
+    )
+    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    claim_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    downstream_reference: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    error_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    __table_args__ = (UniqueConstraint("action_id", "attempt_number"),)
 
 
 class AuditEventORM(Base):

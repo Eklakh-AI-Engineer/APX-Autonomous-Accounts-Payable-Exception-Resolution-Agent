@@ -168,6 +168,8 @@ class ApprovalResponse(BaseModel):
     resolved_by: Optional[str]
     resolved_at: Optional[datetime]
     notes: Optional[str]
+    expires_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
 
 
 # Approval schemas

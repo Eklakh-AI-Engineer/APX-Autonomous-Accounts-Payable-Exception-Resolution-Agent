@@ -34,6 +34,9 @@ class ActionStatus(str, Enum):
     EXECUTED = "EXECUTED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    OUTCOME_UNKNOWN = "OUTCOME_UNKNOWN"
+    RETRY_WAIT = "RETRY_WAIT"
+    DEAD_LETTER = "DEAD_LETTER"
 
 
 class ActionPlan(BaseModel):

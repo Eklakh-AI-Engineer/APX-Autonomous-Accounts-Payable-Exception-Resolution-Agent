@@ -92,6 +92,7 @@ async def lifespan(app: FastAPI):
             case_repo=case_repo,
             approval_repo=approval_repo,
             audit_repo=audit_repo,
+            action_repo=action_repo,
             validator=validator,
             evidence_engine=evidence_engine,
             pipeline=pipeline,

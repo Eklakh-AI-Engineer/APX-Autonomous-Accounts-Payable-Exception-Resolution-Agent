@@ -8,7 +8,7 @@ import logging
 
 from apx.api.schemas import ApprovalResponse, ApproveRequest, RejectRequest, ErrorResponse
 from apx.application.services import get_approval_service
-from apx.api.middleware import get_current_user_groups, get_current_user_id
+from apx.api.middleware import get_current_role, get_current_user_groups, get_current_user_id
 
 router = APIRouter()
 
@@ -102,3 +102,16 @@ async def reject_case(
             status_code=400,
             detail=str(e),
         )
+
+
+@router.post("/{case_id}/revoke", response_model=ApprovalResponse)
+async def revoke_case(case_id: str, request: Request, revoke_request: RejectRequest):
+    """Revoke an approval grant; only authenticated administrators may do so."""
+    actor_id = get_current_user_id(request)
+    if not actor_id or get_current_role(request) != "admin":
+        raise HTTPException(status_code=403, detail="Authenticated administrator identity is required")
+    try:
+        result = get_approval_service().revoke_case(case_id, actor_id, revoke_request.notes)
+        return ApprovalResponse(**result)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

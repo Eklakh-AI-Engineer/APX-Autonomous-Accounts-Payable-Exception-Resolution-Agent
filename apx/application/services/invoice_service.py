@@ -42,10 +42,12 @@ class InvoiceService:
         validator: InvoiceValidator,
         evidence_engine: HybridContextEngine,
         pipeline: Phase4Pipeline,
+        action_repo: ActionRepository | None = None,
     ):
         self.invoice_repo = invoice_repo
         self.case_repo = case_repo
         self.approval_repo = approval_repo
+        self.action_repo = action_repo
         self.audit_repo = audit_repo
         self.validator = validator
         self.evidence_engine = evidence_engine
@@ -302,6 +304,7 @@ class InvoiceService:
         )
 
         # Create approval request if required
+        approval_id = None
         if action_plan.guardrail_decision.requires_approval:
             set_processing_stage("approval_persistence")
             self.logger.info(f"Creating approval request for case {case['case_id']}")
@@ -319,6 +322,7 @@ class InvoiceService:
                 policy_fingerprint=policy_digest,
             )
             self.approval_repo.create(approval_request)
+            approval_id = approval_request.approval_id
 
             self.audit_repo.log(
                 case_id=UUID(case["case_id"]),
@@ -333,6 +337,13 @@ class InvoiceService:
                 },
                 user_id=requested_by,
             )
+
+        # Persist the logical action before any executor path can run. Dispatch is
+        # still fail-closed; the durable row is the intent/approval binding.
+        if self.action_repo is not None:
+            if approval_id:
+                action_plan.metadata["approval_id"] = approval_id
+            self.action_repo.create(action_plan)
 
         # Execute if approved
         action_result = None
