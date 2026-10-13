@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.orm import Session
 
 from apx.persistence.database import session_scope
@@ -16,6 +16,7 @@ from apx.persistence.models import (
     CaseORM,
     ApprovalORM,
     ActionORM,
+    ActionAttemptORM,
     AuditEventORM,
 )
 from apx.persistence.repositories import (
@@ -518,7 +519,14 @@ class SQLiteApprovalRepository(ApprovalRepository):
                 required_approvers=approval.required_approvers,
                 approvals_json=approval.approvals,
                 requested_by=approval.requested_by,
+                resolved_by=approval.resolved_by or None,
+                resolved_at=approval.resolved_at,
+                action_fingerprint=approval.action_fingerprint,
+                evidence_digest=approval.evidence_digest,
+                policy_fingerprint=approval.policy_fingerprint,
                 requested_at=approval.requested_at,
+                expires_at=approval.expires_at,
+                revoked_at=approval.revoked_at,
                 notes=approval.resolution_notes if approval.resolution_notes else "",
             )
             session.add(orm)
@@ -580,6 +588,50 @@ class SQLiteApprovalRepository(ApprovalRepository):
             orm.approvals_json = approvals
             return True
 
+    def resolve(
+        self, approval_id: UUID, status: ApprovalStatus, approver_id: str,
+        notes: Optional[str] = None,
+    ) -> bool:
+        """Claim the pending approval and record its decision in one transaction."""
+        if status not in (ApprovalStatus.APPROVED, ApprovalStatus.REJECTED):
+            raise ValueError("Approval resolution must be APPROVED or REJECTED")
+        now = datetime.utcnow()
+        with session_scope() as session:
+            claimed = session.execute(
+                update(ApprovalORM)
+                .where(
+                    ApprovalORM.approval_id == approval_id,
+                    ApprovalORM.status == ApprovalStatus.PENDING.value,
+                    ApprovalORM.revoked_at.is_(None),
+                    ApprovalORM.expires_at.is_not(None),
+                    ApprovalORM.expires_at > now,
+                )
+                .values(status=status.value, resolved_by=approver_id, resolved_at=now, notes=notes or "")
+            )
+            if claimed.rowcount != 1:
+                return False
+            orm = session.get(ApprovalORM, approval_id)
+            approvals = dict(orm.approvals_json) if orm.approvals_json else {}
+            approvals[approver_id] = {
+                "approved": status == ApprovalStatus.APPROVED,
+                "notes": notes,
+                "timestamp": now.isoformat(),
+            }
+            orm.approvals_json = approvals
+            return True
+
+    def revoke(self, approval_id: UUID, actor_id: str, notes: Optional[str] = None) -> bool:
+        """Atomically revoke an unresolved or approved grant; identity is retained."""
+        now = datetime.utcnow()
+        with session_scope() as session:
+            result = session.execute(update(ApprovalORM).where(
+                ApprovalORM.approval_id == approval_id,
+                ApprovalORM.status.in_(("PENDING", "APPROVED")),
+                ApprovalORM.revoked_at.is_(None),
+            ).values(revoked_at=now, status="REJECTED", resolved_by=actor_id,
+                     resolved_at=now, notes=notes or "Revoked"))
+            return result.rowcount == 1
+
     def list_pending(self, limit: int = 100, offset: int = 0) -> List[ApprovalRequest]:
         with session_scope() as session:
             stmt = select(ApprovalORM).where(ApprovalORM.status == "PENDING").order_by(ApprovalORM.requested_at.desc()).limit(limit).offset(offset)
@@ -616,12 +668,17 @@ class SQLiteApprovalRepository(ApprovalRepository):
             action_type=orm.action_type,
             risk_level=orm.risk_level,
             requested_by=orm.requested_by,
+            action_fingerprint=orm.action_fingerprint or "",
+            evidence_digest=orm.evidence_digest or "",
+            policy_fingerprint=orm.policy_fingerprint or "",
             status=ApprovalStatus(orm.status),
             required_approvers=orm.required_approvers,
             approvals=approvals_bool,
             requested_at=orm.requested_at,
             resolved_by=orm.resolved_by or "",
             resolved_at=orm.resolved_at,
+            expires_at=orm.expires_at,
+            revoked_at=orm.revoked_at,
             resolution_notes=orm.notes,
         )
 
@@ -630,19 +687,237 @@ class SQLiteActionRepository(ActionRepository):
     """SQLite implementation of ActionRepository."""
 
     def create(self, action_plan: ActionPlan) -> UUID:
+        from apx.action.integrity import action_fingerprint
+
+        metadata = action_plan.metadata or {}
+        case_value = metadata.get("case_id") or action_plan.exception_id
+        if not case_value:
+            raise ValueError("Durable action requires a case_id")
+        case_id = UUID(str(case_value))
+        evidence_digest = str(metadata.get("evidence_digest") or "")
+        policy_fingerprint = str(metadata.get("policy_fingerprint") or "")
+        # Bind retries/repeated requests to the logical action, not a worker attempt.
+        logical_key = str(action_plan.idempotency_key)
+        approval_id = metadata.get("approval_id")
+        fingerprint = action_fingerprint(action_plan, evidence_digest, policy_fingerprint)
         with session_scope() as session:
+            existing = session.execute(
+                select(ActionORM).where(ActionORM.idempotency_key == logical_key)
+            ).scalar_one_or_none()
+            if existing:
+                if (
+                    existing.action_type != getattr(action_plan.action_type, "value", action_plan.action_type)
+                    or existing.target != action_plan.target
+                    or existing.parameters_json != action_plan.parameters
+                    or existing.evidence_digest != evidence_digest
+                    or existing.policy_fingerprint != policy_fingerprint
+                ):
+                    raise ValueError("Idempotency key is already bound to a different action")
+                return existing.action_id
             orm = ActionORM(
                 action_id=UUID(action_plan.action_id),
-                case_id=UUID(action_plan.exception_id) if action_plan.exception_id else None,
+                case_id=case_id,
+                approval_id=UUID(str(approval_id)) if approval_id else None,
                 action_type=action_plan.action_type.value if hasattr(action_plan.action_type, 'value') else str(action_plan.action_type),
                 target=action_plan.target,
                 parameters_json=action_plan.parameters,
                 status=action_plan.status.value if hasattr(action_plan.status, 'value') else str(action_plan.status),
-                idempotency_key=action_plan.idempotency_key,
+                idempotency_key=logical_key,
+                action_fingerprint=fingerprint,
+                evidence_digest=evidence_digest,
+                policy_fingerprint=policy_fingerprint,
             )
             session.add(orm)
             session.flush()
             return orm.action_id
+
+    def claim_for_dispatch(
+        self, action_id: UUID, *, claim_token: str, lease_seconds: int,
+        action_fingerprint: str, evidence_digest: str, policy_fingerprint: str,
+    ) -> bool:
+        """Atomically claim only a pending action with matching, live approval bindings."""
+        from datetime import timedelta
+        from types import SimpleNamespace
+        from apx.action.integrity import action_fingerprint as compute_action_fingerprint
+        now = datetime.utcnow()
+        with session_scope() as session:
+            action = session.get(ActionORM, action_id)
+            if action is None or action.action_fingerprint != action_fingerprint:
+                return False
+            recomputed = compute_action_fingerprint(SimpleNamespace(
+                action_id=str(action.action_id), target=action.target,
+                action_type=action.action_type, parameters=action.parameters_json,
+                idempotency_key=action.idempotency_key,
+            ), evidence_digest, policy_fingerprint)
+            if (
+                recomputed != action.action_fingerprint
+                or action.evidence_digest != evidence_digest
+                or action.policy_fingerprint != policy_fingerprint
+            ):
+                return False
+            approval_ok = select(ApprovalORM.approval_id).where(
+                ApprovalORM.approval_id == ActionORM.approval_id,
+                ApprovalORM.status == "APPROVED", ApprovalORM.revoked_at.is_(None),
+                ApprovalORM.expires_at.is_not(None), ApprovalORM.expires_at > now,
+                ApprovalORM.resolved_by.is_not(None),
+                ApprovalORM.resolved_by != ApprovalORM.requested_by,
+                ApprovalORM.action_fingerprint == action_fingerprint,
+                ApprovalORM.evidence_digest == evidence_digest,
+                ApprovalORM.policy_fingerprint == policy_fingerprint,
+            ).exists()
+            attempt_number = action.attempt_count + 1
+            claimed = session.execute(
+                update(ActionORM).where(
+                    ActionORM.action_id == action_id,
+                    ActionORM.status.in_(("PENDING", "RETRY_WAIT")),
+                    (ActionORM.next_retry_at.is_(None) | (ActionORM.next_retry_at <= now)),
+                    ActionORM.approval_id.is_not(None), ActionORM.action_fingerprint == action_fingerprint,
+                    ActionORM.evidence_digest == evidence_digest,
+                    ActionORM.policy_fingerprint == policy_fingerprint, approval_ok,
+                ).values(
+                    status="DISPATCHING", claim_token=claim_token,
+                    lease_expires_at=now + timedelta(seconds=lease_seconds),
+                    attempt_count=ActionORM.attempt_count + 1,
+                    next_retry_at=None,
+                )
+            )
+            if claimed.rowcount != 1:
+                return False
+            session.add(ActionAttemptORM(
+                action_id=action_id,
+                attempt_number=attempt_number,
+                claim_token=claim_token, state="INTENT", started_at=now,
+            ))
+            return True
+
+    def record_dispatch_outcome(
+        self, action_id: UUID, claim_token: str, *, state: str,
+        downstream_reference: str | None = None, error_code: str | None = None,
+    ) -> bool:
+        """Persist terminal/uncertain outcome using the current claim as a fencing token."""
+        allowed = {"EXECUTED", "FAILED", "OUTCOME_UNKNOWN", "RETRY_WAIT", "DEAD_LETTER"}
+        if state not in allowed:
+            raise ValueError(f"Unsupported durable action state: {state}")
+        now = datetime.utcnow()
+        with session_scope() as session:
+            changed = session.execute(update(ActionORM).where(
+                ActionORM.action_id == action_id, ActionORM.status == "DISPATCHING",
+                ActionORM.claim_token == claim_token,
+            ).values(
+                status=state, downstream_reference=downstream_reference,
+                dead_lettered_at=now if state == "DEAD_LETTER" else None,
+                error_message=error_code, lease_expires_at=None, claim_token=None,
+                next_retry_at=None,
+                executed_at=now if state == "EXECUTED" else None,
+                result_json={"downstream_reference": downstream_reference} if state == "EXECUTED" else None,
+            ))
+            if changed.rowcount != 1:
+                return False
+            attempt = session.execute(select(ActionAttemptORM).where(
+                ActionAttemptORM.action_id == action_id,
+                ActionAttemptORM.claim_token == claim_token,
+            )).scalar_one()
+            attempt.state = state
+            attempt.finished_at = now
+            attempt.downstream_reference = downstream_reference
+            attempt.error_code = error_code
+            return True
+
+    def verify_claim_for_dispatch(
+        self, action_id: UUID, claim_token: str, *,
+        action_fingerprint: str, evidence_digest: str, policy_fingerprint: str,
+    ) -> bool:
+        """Recheck the fence and authorization at the adapter boundary."""
+        from types import SimpleNamespace
+        from apx.action.integrity import action_fingerprint as compute_action_fingerprint
+        now = datetime.utcnow()
+        with session_scope() as session:
+            action = session.get(ActionORM, action_id)
+            if (
+                action is None or action.status != "DISPATCHING"
+                or action.claim_token != claim_token or action.lease_expires_at is None
+                or action.lease_expires_at <= now
+            ):
+                return False
+            recalculated = compute_action_fingerprint(SimpleNamespace(
+                action_id=str(action.action_id), target=action.target,
+                action_type=action.action_type, parameters=action.parameters_json,
+                idempotency_key=action.idempotency_key,
+            ), evidence_digest, policy_fingerprint)
+            if (
+                recalculated != action_fingerprint or action.action_fingerprint != action_fingerprint
+                or action.evidence_digest != evidence_digest or action.policy_fingerprint != policy_fingerprint
+            ):
+                return False
+            approval = session.get(ApprovalORM, action.approval_id) if action.approval_id else None
+            return bool(
+                approval and approval.status == "APPROVED" and approval.revoked_at is None
+                and approval.expires_at is not None and approval.expires_at > now
+                and approval.resolved_by and approval.resolved_by != approval.requested_by
+                and approval.action_fingerprint == action_fingerprint
+                and approval.evidence_digest == evidence_digest
+                and approval.policy_fingerprint == policy_fingerprint
+            )
+
+    def recover_expired_claims(self) -> int:
+        """Fence crashed dispatchers into uncertainty; never make them retryable."""
+        now = datetime.utcnow()
+        with session_scope() as session:
+            stale = session.execute(select(ActionORM.action_id, ActionORM.claim_token).where(
+                ActionORM.status == "DISPATCHING", ActionORM.lease_expires_at < now,
+            )).all()
+            for action_id, token in stale:
+                session.execute(update(ActionORM).where(
+                    ActionORM.action_id == action_id, ActionORM.status == "DISPATCHING",
+                    ActionORM.claim_token == token,
+                ).values(status="OUTCOME_UNKNOWN", claim_token=None, lease_expires_at=None))
+                if token:
+                    session.execute(update(ActionAttemptORM).where(
+                        ActionAttemptORM.action_id == action_id,
+                        ActionAttemptORM.claim_token == token,
+                        ActionAttemptORM.state == "INTENT",
+                    ).values(state="OUTCOME_UNKNOWN", finished_at=now, error_code="LEASE_EXPIRED"))
+            return len(stale)
+
+    def reconcile_outcome(self, action_id: UUID, *, downstream_found: bool, reference: str | None = None) -> bool:
+        """Resolve uncertainty from an authoritative downstream lookup before any retry."""
+        with session_scope() as session:
+            target = "EXECUTED" if downstream_found else "RETRY_WAIT"
+            result = session.execute(update(ActionORM).where(
+                ActionORM.action_id == action_id, ActionORM.status == "OUTCOME_UNKNOWN",
+            ).values(
+                status=target, downstream_reference=reference if downstream_found else None,
+                executed_at=datetime.utcnow() if downstream_found else None,
+                result_json={"downstream_reference": reference} if downstream_found else None,
+            ))
+            return result.rowcount == 1
+
+    def schedule_retry(self, action_id: UUID, retry_at: datetime) -> bool:
+        """Set a durable retry time only after an authoritative no-effect reconciliation."""
+        with session_scope() as session:
+            result = session.execute(update(ActionORM).where(
+                ActionORM.action_id == action_id, ActionORM.status == "RETRY_WAIT",
+            ).values(next_retry_at=retry_at))
+            return result.rowcount == 1
+
+    def list_dead_letters(self, limit: int = 100) -> List[Dict[str, Any]]:
+        with session_scope() as session:
+            rows = session.execute(select(ActionORM).where(
+                ActionORM.status == "DEAD_LETTER"
+            ).order_by(ActionORM.dead_lettered_at.desc()).limit(limit)).scalars().all()
+            return [self._orm_to_dict(row) for row in rows]
+
+    def list_attempts(self, action_id: UUID) -> List[Dict[str, Any]]:
+        with session_scope() as session:
+            rows = session.execute(select(ActionAttemptORM).where(
+                ActionAttemptORM.action_id == action_id,
+            ).order_by(ActionAttemptORM.attempt_number)).scalars().all()
+            return [{
+                "attempt_number": row.attempt_number, "state": row.state,
+                "claim_token": row.claim_token, "started_at": row.started_at.isoformat(),
+                "finished_at": row.finished_at.isoformat() if row.finished_at else None,
+                "downstream_reference": row.downstream_reference, "error_code": row.error_code,
+            } for row in rows]
 
     def get(self, action_id: UUID) -> Optional[Dict[str, Any]]:
         with session_scope() as session:
@@ -731,6 +1006,13 @@ class SQLiteActionRepository(ActionRepository):
             "status": orm.status,
             "idempotency_key": orm.idempotency_key,
             "retry_count": orm.retry_count,
+            "attempt_count": orm.attempt_count,
+            "action_fingerprint": orm.action_fingerprint,
+            "evidence_digest": orm.evidence_digest,
+            "policy_fingerprint": orm.policy_fingerprint,
+            "lease_expires_at": orm.lease_expires_at.isoformat() if orm.lease_expires_at else None,
+            "downstream_reference": orm.downstream_reference,
+            "dead_lettered_at": orm.dead_lettered_at.isoformat() if orm.dead_lettered_at else None,
             "result": orm.result_json,
             "error_message": orm.error_message,
             "executed_at": orm.executed_at.isoformat() if orm.executed_at else None,

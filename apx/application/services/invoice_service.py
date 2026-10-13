@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import hashlib
 from datetime import datetime
 from typing import Any, Optional
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5, NAMESPACE_URL
 
 from apx.action.models import ActionPlan, ActionType, ActionStatus, ApprovalStatus
+from apx.action.integrity import action_fingerprint, evidence_snapshot_digest, policy_fingerprint as guardrail_fingerprint
 from apx.action.pipeline import Phase4Pipeline
 from apx.agent.controller import run_investigation
 from apx.agent.models import InvestigationResult
@@ -25,6 +27,7 @@ from apx.persistence.database import init_database, get_session_factory
 from apx.persistence.models import InvoiceORM, CaseORM, GroundTruthORM
 from apx.config.settings import get_settings
 from apx.data.generate_synthetic import SyntheticGenerator
+from apx.observability.processing_diagnostics import set_processing_stage
 
 
 class InvoiceService:
@@ -39,10 +42,12 @@ class InvoiceService:
         validator: InvoiceValidator,
         evidence_engine: HybridContextEngine,
         pipeline: Phase4Pipeline,
+        action_repo: ActionRepository | None = None,
     ):
         self.invoice_repo = invoice_repo
         self.case_repo = case_repo
         self.approval_repo = approval_repo
+        self.action_repo = action_repo
         self.audit_repo = audit_repo
         self.validator = validator
         self.evidence_engine = evidence_engine
@@ -130,16 +135,26 @@ class InvoiceService:
             result["case"] = case
         return result
 
-    def process_invoice(self, invoice_id: str, idempotency_key: Optional[str] = None) -> dict[str, Any]:
+    def process_invoice(
+        self,
+        invoice_id: str,
+        idempotency_key: Optional[str] = None,
+        *,
+        requested_by: str,
+    ) -> dict[str, Any]:
         """Process an invoice through the full APX pipeline."""
+        if not requested_by or requested_by == "system":
+            raise ValueError("Authenticated requester identity is required")
         start_time = datetime.utcnow()
 
         # Get invoice
+        set_processing_stage("invoice_load")
         invoice = self.invoice_repo.get(invoice_id)
         if not invoice:
             raise ValueError(f"Invoice {invoice_id} not found")
 
         # Get related entities for validation
+        set_processing_stage("reference_data_resolution")
         generator = SyntheticGenerator(seed=42)
         generator.generate_vendors(count=35)
         generator.generate_purchase_orders(count=100)
@@ -154,12 +169,14 @@ class InvoiceService:
             raise ValueError(f"Vendor {invoice.vendor_id} not found")
 
         # Get or create case
+        set_processing_stage("case_resolution")
         case = self.case_repo.get_by_invoice(invoice_id)
         if not case:
             raise ValueError(f"Case for invoice {invoice_id} not found")
         case_id = UUID(case["case_id"])
 
         # Phase 1: Validation
+        set_processing_stage("phase1_validation")
         self.logger.info(f"Phase 1: Validating invoice {invoice_id}")
         self.case_repo.update_status(UUID(case["case_id"]), "VALIDATING", current_phase="phase1")
 
@@ -168,6 +185,7 @@ class InvoiceService:
         )
 
         # Log validation complete
+        set_processing_stage("phase1_persistence")
         self.audit_repo.log(
             case_id=UUID(case["case_id"]),
             event_type="VALIDATION_COMPLETE",
@@ -187,9 +205,11 @@ class InvoiceService:
         )
 
         # Phase 2: Evidence Retrieval
+        set_processing_stage("phase2_evidence_retrieval")
         self.logger.info(f"Phase 2: Retrieving evidence for {invoice_id}")
         evidence_set = self.evidence_engine.retrieve(exception_report)
 
+        set_processing_stage("phase2_persistence")
         self.audit_repo.log(
             case_id=UUID(case["case_id"]),
             event_type="RETRIEVAL_COMPLETE",
@@ -209,6 +229,7 @@ class InvoiceService:
         )
 
         # Phase 3: Investigation
+        set_processing_stage("phase3_investigation")
         self.logger.info(f"Phase 3: Investigating {invoice_id}")
         investigation_result = run_investigation(
             exception_report=exception_report,
@@ -216,6 +237,7 @@ class InvoiceService:
             budget_limit=10,
         )
 
+        set_processing_stage("phase3_persistence")
         self.audit_repo.log(
             case_id=UUID(case["case_id"]),
             event_type="INVESTIGATION_COMPLETE",
@@ -232,12 +254,33 @@ class InvoiceService:
         self.case_repo.update_phase3_result(UUID(case["case_id"]), investigation_result)
 
         # Phase 4: Decision & Action
+        set_processing_stage("phase4_decision")
         self.logger.info(f"Phase 4: Decision & Action for {invoice_id}")
         action_plan = self.pipeline.process(
             investigation_result=investigation_result,
             exception_report=exception_report,
             evidence_set=evidence_set,
+            idempotency_key=hashlib.sha256(
+                f"{case_id}:{invoice_id}:{idempotency_key or 'apx-action-v1'}".encode("utf-8")
+            ).hexdigest(),
         )
+
+        evidence_digest = evidence_snapshot_digest(evidence_set)
+        policy_digest = guardrail_fingerprint(self.pipeline.guardrail)
+        action_plan.idempotency_key = hashlib.sha256(
+            f"{case_id}:{invoice_id}:{idempotency_key or 'apx-action-v1'}".encode("utf-8")
+        ).hexdigest()
+        action_plan.guardrail_decision.idempotency_key = action_plan.idempotency_key
+        action_plan.action_id = str(uuid5(NAMESPACE_URL, action_plan.idempotency_key))
+        action_plan.metadata.update(
+            {
+                "case_id": str(case_id),
+                "evidence_digest": evidence_digest,
+                "policy_fingerprint": policy_digest,
+            }
+        )
+        fingerprint = action_fingerprint(action_plan, evidence_digest, policy_digest)
+        action_plan.metadata["action_fingerprint"] = fingerprint
 
         self.audit_repo.log(
             case_id=UUID(case["case_id"]),
@@ -261,19 +304,25 @@ class InvoiceService:
         )
 
         # Create approval request if required
+        approval_id = None
         if action_plan.guardrail_decision.requires_approval:
+            set_processing_stage("approval_persistence")
             self.logger.info(f"Creating approval request for case {case['case_id']}")
-            from apx.action.models import ApprovalRequest, ApprovalStatus
+            from apx.action.models import ApprovalRequest
             approval_request = ApprovalRequest(
                 approval_id=str(uuid4()),
                 action_plan_id=str(case["case_id"]),
                 action_type=action_plan.action_type.value if hasattr(action_plan.action_type, 'value') else str(action_plan.action_type),
                 risk_level=str(action_plan.risk_assessment.risk_level) if action_plan.risk_assessment else "UNKNOWN",
-                requested_by="system",
+                requested_by=requested_by,
                 status=ApprovalStatus.PENDING,
                 required_approvers=action_plan.guardrail_decision.required_approvals,
+                action_fingerprint=fingerprint,
+                evidence_digest=evidence_digest,
+                policy_fingerprint=policy_digest,
             )
             self.approval_repo.create(approval_request)
+            approval_id = approval_request.approval_id
 
             self.audit_repo.log(
                 case_id=UUID(case["case_id"]),
@@ -286,11 +335,20 @@ class InvoiceService:
                     "action_type": approval_request.action_type,
                     "required_approvers": approval_request.required_approvers,
                 },
+                user_id=requested_by,
             )
+
+        # Persist the logical action before any executor path can run. Dispatch is
+        # still fail-closed; the durable row is the intent/approval binding.
+        if self.action_repo is not None:
+            if approval_id:
+                action_plan.metadata["approval_id"] = approval_id
+            self.action_repo.create(action_plan)
 
         # Execute if approved
         action_result = None
         if action_plan.status in ["APPROVED", "EXECUTING"]:
+            set_processing_stage("action_execution")
             self.logger.info(f"Executing action for {invoice_id}")
             action_result = self.pipeline.execute_action(action_plan)
 
@@ -310,12 +368,19 @@ class InvoiceService:
         processing_time_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
         # Update case status
-        self.case_repo.update_status(UUID(case["case_id"]), "COMPLETED", completed_at=datetime.utcnow())
+        set_processing_stage("case_completion")
+        awaiting_approval = action_plan.approval_status == ApprovalStatus.PENDING
+        case_status = "PENDING_APPROVAL" if awaiting_approval else "COMPLETED"
+        self.case_repo.update_status(
+            UUID(case["case_id"]),
+            case_status,
+            completed_at=None if awaiting_approval else datetime.utcnow(),
+        )
 
         return {
             "case_id": str(case["case_id"]),
             "invoice_id": invoice_id,
-            "status": "completed",
+            "status": "awaiting_approval" if awaiting_approval else "completed",
             "current_phase": "phase4",
             "exception_codes": [e.value for e in exception_report.exception_codes],
             "investigation_outcome": investigation_result.outcome.value if investigation_result.outcome else "UNKNOWN",

@@ -318,6 +318,17 @@ class TestRetrievalEvaluator:
         assert result.recall_at_10 == 1.0
         assert result.mrr == 1.0  # First result is relevant
         assert result.total_queries == 1
+        assert result.per_query[0]["valid_count"] == 1
+        assert result.per_query[0]["candidate_count"] == 1
+        assert result.per_query[0]["validity_status_counts"] == {"valid": 1}
+
+    def test_retrieval_validity_diagnostics_preserve_invalid_status_categories(self):
+        evidence_set = _create_test_evidence_set("INV-STALE")
+        evidence_set.validated_evidence[0].validity_status = ValidityStatus.STALE
+        result = RetrievalEvaluator().evaluate(evidence_set, set(), set(), set())
+        assert result.per_query[0]["valid_count"] == 0
+        assert result.per_query[0]["candidate_count"] == 1
+        assert result.per_query[0]["validity_status_counts"] == {"stale": 1}
 
     def test_retrieval_mrr(self):
         """Test MRR calculation with relevant at rank 3."""
@@ -391,6 +402,29 @@ class TestRetrievalEvaluator:
         # No invalid evidence in results = perfect rejection
         assert result.invalid_evidence_rejection_rate == 1.0
 
+    def test_empty_retrieval_query_is_counted_and_invalid_labels_are_rejected(self):
+        evidence_set = _create_test_evidence_set("INV-EMPTY")
+        evidence_set.candidates = []
+        result = RetrievalEvaluator().evaluate(evidence_set, set(), set(), {"EV-INVALID"})
+        assert result.total_queries == 1
+        assert result.per_query[0]["candidate_count"] == 0
+        assert result.per_query[0]["valid_count"] == 0
+        assert result.invalid_evidence_rejection_rate == 1.0
+        assert result.invalid_rejection_query_count == 1
+
+    def test_batch_rejection_denominator_excludes_queries_without_invalid_labels(self):
+        labeled = _create_test_evidence_set("INV-LABELED")
+        labeled.candidates = []
+        unlabeled = _create_test_evidence_set("INV-UNLABELED")
+        unlabeled.candidates = []
+        result = RetrievalEvaluator().evaluate_batch(
+            [labeled, unlabeled],
+            {"INV-LABELED": {"invalid": {"EV-MISSING"}}, "INV-UNLABELED": {}},
+        )
+        assert result.total_queries == 2
+        assert result.invalid_rejection_query_count == 1
+        assert result.invalid_evidence_rejection_rate == 1.0
+
     def test_retrieval_vendor_scope(self):
         """Test vendor scope correctness."""
         evaluator = RetrievalEvaluator()
@@ -433,6 +467,55 @@ class TestDecisionEvaluator:
 
         assert hasattr(result, 'risk_accuracy')
         assert hasattr(result, 'risk_correct')
+
+    def test_batch_reports_invoice_level_decision_errors(self):
+        evaluator = DecisionEvaluator()
+        gt = _create_test_ground_truth("INV-ERR-7", [ExceptionCode.CREDIT_ISSUE])
+        gt.expected_decision = "ESCALATE"
+        result = evaluator.evaluate_batch([{
+            "invoice_id": gt.invoice_id,
+            "investigation_result": _create_test_investigation_result(gt.invoice_id, TerminalOutcome.RESOLVE),
+            "risk_assessment": _create_test_risk_assessment(gt.invoice_id, RiskLevel.LOW),
+            "guardrail_result": _create_test_guardrail_result(GuardrailDecision.ALLOW),
+        }], [gt])
+        row = result.per_case[0]
+        assert row["invoice_id"] == "INV-ERR-7"
+        assert row["expected_outcome"] == "ESCALATE"
+        assert row["actual_outcome"] == "RESOLVE"
+        assert "decision_mismatch" in row["errors"]
+        assert "risk_mismatch" in row["errors"]
+
+    def test_unlabeled_decision_is_not_scored_or_marked_as_error(self):
+        gt = GroundTruth(invoice_id="INV-NO-DECISION-LABEL")
+        result = DecisionEvaluator().evaluate_batch([{
+            "invoice_id": gt.invoice_id,
+            "investigation_result": _create_test_investigation_result(gt.invoice_id, TerminalOutcome.RESOLVE),
+            "risk_assessment": _create_test_risk_assessment(gt.invoice_id, RiskLevel.LOW),
+            "guardrail_result": _create_test_guardrail_result(GuardrailDecision.ALLOW),
+        }], [gt])
+        assert result.investigation_outcome_metrics.total_cases == 0
+        assert result.risk_classification_metrics.total_cases == 0
+        assert result.escalation_metrics.total_cases == 0
+        assert result.per_case[0]["outcome_correct"] is None
+        assert result.per_case[0]["risk_correct"] is None
+        assert result.per_case[0]["escalation_correct"] is None
+        assert result.per_case[0]["errors"] == []
+
+    def test_unsupported_decision_label_is_not_counted_in_denominators(self):
+        gt = _create_test_ground_truth("INV-UNKNOWN-LABEL")
+        gt.expected_decision = "UNSUPPORTED"
+        result = DecisionEvaluator().evaluate_batch([{
+            "invoice_id": gt.invoice_id,
+            "investigation_result": _create_test_investigation_result(gt.invoice_id, TerminalOutcome.RESOLVE),
+            "risk_assessment": _create_test_risk_assessment(gt.invoice_id, RiskLevel.LOW),
+            "guardrail_result": _create_test_guardrail_result(GuardrailDecision.ALLOW),
+        }], [gt])
+        assert result.investigation_outcome_metrics.total_cases == 0
+        assert result.risk_classification_metrics.total_cases == 0
+        assert result.escalation_metrics.total_cases == 0
+        assert result.per_case[0]["outcome_correct"] is None
+        assert result.per_case[0]["risk_correct"] is None
+        assert result.per_case[0]["escalation_correct"] is None
 
 
 class TestActionEvaluator:
@@ -479,6 +562,79 @@ class TestActionEvaluator:
         result = evaluator.evaluate_action(action_plan, action_result, guardrail_result, gt)
 
         assert "blocked_accuracy" in dir(result) or hasattr(result, 'blocked_correct')
+
+    def test_batch_records_invoice_level_action_errors_and_label_gaps(self):
+        evaluator = ActionEvaluator()
+        plan = _create_test_action_plan("INV-CASE-9", ActionType.ESCALATE_TO_HUMAN)
+        result = evaluator.evaluate_batch(
+            [plan],
+            [_create_test_action_result(False)],
+            [_create_test_guardrail_result(GuardrailDecision.BLOCK)],
+            [_create_test_ground_truth("INV-CASE-9", [ExceptionCode.CREDIT_ISSUE])],
+        )
+        row = result.per_case[0]
+        assert row["invoice_id"] == plan.target or row["invoice_id"] == plan.exception_id
+        assert row["expected_action_type"] is not None
+        assert row["action_type_correct"] is False
+        assert "action_not_successful" in row["errors"]
+        assert "expected_guardrail_decision" in row
+        assert "expected_requires_approval" in row
+        assert result.metrics.action_evaluation_cases == 1
+        assert result.metrics.approval_evaluation_cases == 1
+
+    def test_unlabeled_action_is_excluded_instead_of_self_scoring(self):
+        plan = _create_test_action_plan("INV-UNLABELED", ActionType.AUTO_RESOLVE)
+        result = ActionEvaluator().evaluate_batch(
+            [plan],
+            [_create_test_action_result(True)],
+            [_create_test_guardrail_result(GuardrailDecision.ALLOW)],
+            [GroundTruth(invoice_id="INV-UNLABELED")],
+        )
+        assert result.metrics.total_actions == 1
+        assert result.metrics.action_evaluation_cases == 0
+        assert result.metrics.guardrail_decisions == 0
+        assert result.metrics.approval_evaluation_cases == 0
+        assert result.metrics.action_accuracy == 0.0
+        assert result.per_case[0]["action_type_correct"] is None
+        assert result.per_case[0]["label_status"] == "missing_expected_action_label"
+        assert result.per_case[0]["errors"] == []
+        assert "action_not_successful" not in result.per_case[0]["errors"]
+
+    def test_blocked_precision_uses_all_predicted_blocks(self):
+        evaluator = ActionEvaluator()
+        plans = [
+            _create_test_action_plan("INV-BLOCK-TRUE", ActionType.AUTO_RESOLVE),
+            _create_test_action_plan("INV-BLOCK-FALSE", ActionType.AUTO_RESOLVE),
+        ]
+        plans[0].risk_assessment = _create_test_risk_assessment("INV-BLOCK-TRUE", RiskLevel.HIGH)
+        truths = [
+            _create_test_ground_truth("INV-BLOCK-TRUE", [ExceptionCode.AMOUNT_MISMATCH]),
+            _create_test_ground_truth("INV-BLOCK-FALSE", [ExceptionCode.AMOUNT_MISMATCH]),
+        ]
+        truths[0].expected_decision = "AUTO_APPROVE"
+        truths[1].expected_decision = "AUTO_APPROVE"
+        results = evaluator.evaluate_batch(
+            plans,
+            [_create_test_action_result(False), _create_test_action_result(False)],
+            [_create_test_guardrail_result(GuardrailDecision.BLOCK)] * 2,
+            truths,
+        )
+        assert results.metrics.blocked_predicted_positive == 2
+        assert results.metrics.blocked_expected_positive == 1
+        assert results.metrics.blocked_correct == 1
+        assert results.metrics.blocked_precision == 0.5
+        assert results.metrics.blocked_recall == 1.0
+
+    def test_blocked_precision_excludes_unlabeled_cases(self):
+        result = ActionEvaluator().evaluate_batch(
+            [_create_test_action_plan("INV-BLOCK-NO-LABEL")],
+            [_create_test_action_result(False)],
+            [_create_test_guardrail_result(GuardrailDecision.BLOCK)],
+            [GroundTruth(invoice_id="INV-BLOCK-NO-LABEL")],
+        )
+        assert result.metrics.blocked_actions == 1
+        assert result.metrics.blocked_predicted_positive == 0
+        assert result.metrics.blocked_precision == 0.0
 
 
 class TestBusinessEvaluator:

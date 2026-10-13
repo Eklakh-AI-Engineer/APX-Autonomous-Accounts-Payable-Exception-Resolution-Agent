@@ -52,6 +52,8 @@ class TestMockLLMProvider:
         provider.investigate("test", [], "INVESTIGATING", 5)
         assert provider.get_call_count() == 2
     
+
+
     def test_invalid_provider_implementation(self):
         """Test that abstract base class cannot be instantiated."""
         with pytest.raises(TypeError):

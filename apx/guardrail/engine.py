@@ -216,13 +216,13 @@ class ActionGuardrail:
             risk_level=risk_level,
             requires_approval=requires_approval,
             approval_status=approval_status,
-            approval_reason=self._get_approval_reason(decision, policy, risk_level),
+            approval_reason=self._get_approval_reason(decision, policy, risk_level, requires_approval),
             idempotency_key=idempotency_key or "",
             rate_limit_ok=all(c.passed for c in checks if c.check_name == "rate_limit"),
             rate_limit_reason=self._get_rate_limit_reason(checks),
             block_reason=self._get_block_reason(checks),
             allowed_action_types=self._get_allowed_actions(policy, risk_level),
-            required_approvals=self._get_required_approvals(policy, decision),
+            required_approvals=self._get_required_approvals(policy, requires_approval),
             metadata={
                 "action_type": action_type,
                 "risk_level": risk_level,
@@ -408,25 +408,27 @@ class ActionGuardrail:
     def _check_investigation_outcome(self, investigation_result: Any, action_type: str) -> GuardrailCheckResult:
         """Check if investigation outcome is compatible with action."""
         outcome = investigation_result.outcome
+        outcome_value = getattr(outcome, "value", outcome)
+        action_value = getattr(action_type, "value", action_type)
+        incompatible_actions = {"AUTO_RESOLVE", "ADJUST_PAYMENT", "VOID_INVOICE"}
         
-        if outcome == "ESCALATE" and action_type in ["AUTO_RESOLVE", "ADJUST_PAYMENT", "VOID_INVOICE"]:
+        if (
+            outcome_value in {"ESCALATE", "REQUEST_INFO"}
+            and action_value in incompatible_actions
+        ):
             return GuardrailCheckResult(
                 check_name="investigation_outcome_compatible",
                 passed=False,
-                reason=f"Investigation outcome ESCALATE incompatible with action {action_type}",
-                severity="ERROR",
-            )
-        elif outcome == "REQUEST_INFO" and action_type in ["AUTO_RESOLVE", "ADJUST_PAYMENT", "VOID_INVOICE"]:
-            return GuardrailCheckResult(
-                check_name="investigation_outcome_compatible",
-                passed=False,
-                reason=f"Investigation outcome REQUEST_INFO incompatible with action {action_type}",
+                reason=(
+                    f"Investigation outcome {outcome_value} incompatible "
+                    f"with action {action_value}"
+                ),
                 severity="ERROR",
             )
         return GuardrailCheckResult(
             check_name="investigation_outcome_compatible",
             passed=True,
-            reason=f"Investigation outcome compatible with action",
+            reason="Investigation outcome compatible with action",
             severity="INFO",
         )
 
@@ -572,11 +574,15 @@ class ActionGuardrail:
             return True
         return False
 
-    def _get_approval_reason(self, decision: str, policy: ActionPolicy, risk_level: str) -> str:
+    def _get_approval_reason(
+        self, decision: str, policy: ActionPolicy, risk_level: str, requires_approval: bool = False
+    ) -> str:
         if decision == "REQUIRE_APPROVAL":
             return f"Action requires human approval (risk: {risk_level})"
         if decision == "BLOCK":
             return "Action blocked by guardrail"
+        if requires_approval:
+            return f"Action requires human approval (risk: {risk_level})"
         return "No approval required"
 
     def _get_rate_limit_reason(self, checks: list) -> str:
@@ -596,8 +602,8 @@ class ActionGuardrail:
         from apx.guardrail.models import ActionType
         return [a.value for a in ActionType if risk_level in self.config.policies.get(a.value, self.config.default_policy).allowed_risk_levels]
 
-    def _get_required_approvals(self, policy: ActionPolicy, decision: str) -> list[str]:
-        if decision in ["REQUIRE_APPROVAL", "BLOCK"]:
+    def _get_required_approvals(self, policy: ActionPolicy, requires_approval: bool) -> list[str]:
+        if requires_approval:
             return policy.required_approvals or ["human_review"]
         return []
 

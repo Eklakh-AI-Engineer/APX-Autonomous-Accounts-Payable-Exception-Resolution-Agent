@@ -1,0 +1,129 @@
+{
+  "status": "BLOCKED",
+  "reason": "Fresh deterministic DEV benchmark on audited head 4e4a19c passed only narrow configured gates; release acceptance remains blocked by weak action/approval/guardrail/decision/evidence metrics, missing human-review provenance and invoice/job mappings, and unmeasured document extraction.",
+  "candidate_commit": "4e4a19cf70c5f6926e1c16a3f13318ce874eac08",
+  "ci_run": "38285760881",
+  "fresh_result": "benchmark_dev_20261012_174606.json",
+  "fresh_run_status": "configured_gates_passed_quality_acceptance_blocked",
+  "historical_result": "apx/evaluation/results/benchmark_dev_20260819_171101.json",
+  "fresh_run_required": false,
+  "required_checks": [
+    "Validate the frozen dataset schema and SHA-256 before execution",
+    "Run deterministic DEV benchmark with seed 42 and pinned reference date",
+    "Review all layer metrics and denominators, including approval requirement accuracy and blocked-decision precision",
+    "Compare against predeclared thresholds without changing labels or thresholds to force a pass",
+    "Retain command, exit status, commit SHA, and output artifact",
+    "Obtain independent human-review provenance and invoice/job mappings",
+    "Review low decision/action/approval/evidence-validity measures and per-case error analysis; do not infer acceptance from the narrow command exit",
+    "Obtain independent policy-owner review of inferred approval requirements; no human reviewer provenance is present"
+  ],
+  "ci_push_run": "38285760881",
+  "test_summary": "CI #148 success: invoice repro 1 passed; API 61 passed/1 skipped; focused 132 passed; full suite 430 passed/1 skipped; configured Ruff passed.",
+  "benchmark_command": "python -m apx.evaluation.benchmark --tier dev --seed 42 --output artifacts/benchmark (workflow default APX_REFERENCE_DATE=2026-08-29)",
+  "artifact_id": "11763272206",
+  "artifact_archive_sha256": "4058b39121755c76c30083a247319d04a5e00ef436322c663af7eaecdf2fca67",
+  "test_artifact_id": "11763790597",
+  "test_artifact_archive_sha256": "f0de35b16f16e914ff3435d3f5a932db59008af733bc9e0d9943c0f46791642a",
+  "dataset_sha256": "177297e2c8cd78f21b45ad814dbe5079042be4d051b80649dc9ca3dadc8edfbd",
+  "evidence_corpus_sha256": "09e5e36c37541f3e5dc3eadf7f9d0d1d6f5eda6406abecf5963260d93db66e86",
+  "baseline_comparison": {
+    "baseline_commit": "37e61bd21f9d121e08e04462afa3063030989f6d",
+    "baseline_ci_run": "38223749502",
+    "baseline_artifact": "benchmark_dev_20261012_083441.json",
+    "action_error_rows_changed": 0,
+    "decision_error_rows_changed": 0,
+    "action_errors_by_category_per_500": {
+      "action_type_mismatch": 189,
+      "action_not_successful": 252,
+      "guardrail_mismatch": 210,
+      "approval_requirement_mismatch": 308
+    },
+    "action_error_case_union": "498/500",
+    "decision_errors_by_category_per_500": {
+      "decision_mismatch": 189,
+      "risk_mismatch": 35,
+      "escalation_mismatch": 163
+    },
+    "decision_error_case_union": "189/500",
+    "interpretation": "Enum-normalization and invalid-evidence boundary changes did not alter keyed action, guardrail, or decision results. CI #148 matches #138 with zero changed rows across 687 combined action/decision error records. Categories overlap.",
+    "latest_comparison_baseline_ci_run": "38278704879",
+    "latest_comparison_baseline_artifact": "benchmark_dev_20261012_164309.json",
+    "latest_combined_error_rows_changed": 0,
+    "latest_action_error_rows_changed": 0,
+    "latest_decision_error_rows_changed": 0,
+    "verification_candidate_commit": "4e4a19cf70c5f6926e1c16a3f13318ce874eac08",
+    "intermediate_run_90_to_91_action_error_rows_changed": 0,
+    "intermediate_run_90_to_91_decision_error_rows_changed": 0
+  },
+  "benchmark_code_candidate": "4e4a19cf70c5f6926e1c16a3f13318ce874eac08",
+  "retrieval_metric_contract": {
+    "query_count": 10,
+    "case_ids": [
+      "EVAL-001",
+      "EVAL-002",
+      "EVAL-003",
+      "EVAL-004",
+      "EVAL-005",
+      "EVAL-006",
+      "EVAL-007",
+      "EVAL-008",
+      "EVAL-009",
+      "EVAL-010"
+    ],
+    "relevant_evidence_label_ids": 10,
+    "irrelevant_evidence_label_ids": 35,
+    "invalid_evidence_label_ids": 2305,
+    "retrieved_candidate_count": 48,
+    "retrieved_valid_count": 26,
+    "retrieved_stale_count": 20,
+    "retrieved_invalid_outcome_count": 2,
+    "validity_status_per_query": {
+      "EVAL-001": {
+        "valid": 2,
+        "stale": 1
+      },
+      "EVAL-002": {
+        "valid": 4,
+        "stale": 2
+      },
+      "EVAL-003": {
+        "valid": 3,
+        "stale": 2
+      },
+      "EVAL-004": {
+        "valid": 1,
+        "stale": 1
+      },
+      "EVAL-005": {
+        "valid": 3,
+        "stale": 4
+      },
+      "EVAL-006": {
+        "valid": 3,
+        "stale": 2
+      },
+      "EVAL-007": {
+        "valid": 1
+      },
+      "EVAL-008": {
+        "valid": 1,
+        "stale": 3
+      },
+      "EVAL-009": {
+        "valid": 5,
+        "stale": 3,
+        "invalid_outcome": 1
+      },
+      "EVAL-010": {
+        "valid": 3,
+        "stale": 2,
+        "invalid_outcome": 1
+      }
+    },
+    "invalid_evidence_policy": "Evidence with non-VALID status is excluded from investigation model inputs and cited/used evidence IDs.",
+    "validity_aggregation": "Macro-average over 10 query-level ratios: valid retrieved candidates / retrieved candidates for that query; candidate counts vary and are not the invoice count.",
+    "invalid_rejection_aggregation": "Macro-average over queries with one or more invalid evidence labels; current frozen dataset denominator is 10 queries. Queries without invalid labels are excluded as not applicable.",
+    "reviewer_adjudication_provenance_present": false,
+    "invoice_job_mapping_present": false
+  }
+}

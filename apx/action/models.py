@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Optional
 from pydantic import BaseModel, Field
@@ -31,9 +31,13 @@ class ActionStatus(str, Enum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     EXECUTING = "EXECUTING"
+    DISPATCHING = "DISPATCHING"
     EXECUTED = "EXECUTED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    OUTCOME_UNKNOWN = "OUTCOME_UNKNOWN"
+    RETRY_WAIT = "RETRY_WAIT"
+    DEAD_LETTER = "DEAD_LETTER"
 
 
 class ActionPlan(BaseModel):
@@ -91,6 +95,13 @@ class ApprovalRequest(BaseModel):
     resolution_notes: str = ""
     required_approvers: list[str] = Field(default_factory=list)
     approvals: dict[str, bool] = Field(default_factory=dict)  # approver_id -> approved
+    action_fingerprint: str = ""
+    evidence_digest: str = ""
+    policy_fingerprint: str = ""
+    expires_at: Optional[datetime] = Field(
+        default_factory=lambda: datetime.utcnow() + timedelta(hours=24)
+    )
+    revoked_at: Optional[datetime] = None
 
 
 class ActionExecutorConfig(BaseModel):

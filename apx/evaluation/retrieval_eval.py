@@ -18,6 +18,7 @@ class RetrievalResult:
     per_query: List[Dict[str, Any]] = field(default_factory=list)
     valid_evidence_rate: float = 0.0
     invalid_evidence_rejection_rate: float = 0.0
+    invalid_rejection_query_count: int = 0
     vendor_scope_correctness: float = 0.0
 
 
@@ -46,7 +47,20 @@ class RetrievalEvaluator:
 
         candidates = evidence_set.candidates
         if not candidates:
-            return RetrievalResult()
+            return RetrievalResult(total_queries=1, per_query=[{
+                "query_id": evidence_set.invoice_id,
+                "recall_at_5": 0.0,
+                "recall_at_10": 0.0,
+                "mrr": 0.0,
+                "ndcg_at_10": 0.0,
+                "valid_count": 0,
+                "candidate_count": 0,
+                "invalid_count": 0,
+                "invalid_label_count": len(invalid_ids),
+                "vendor_scope_correct_count": 0,
+                "validity_status_counts": {},
+            }], invalid_evidence_rejection_rate=(1.0 if invalid_ids else 0.0),
+                invalid_rejection_query_count=(1 if invalid_ids else 0))
 
         # Map candidate to relevance
         relevance_map = {}
@@ -89,6 +103,11 @@ class RetrievalEvaluator:
             for candidate in candidates
             if validity_by_id.get(candidate.evidence.evidence_id) == ValidityStatus.VALID
         )
+        validity_status_counts: Dict[str, int] = {}
+        for candidate in candidates:
+            status = validity_by_id.get(candidate.evidence.evidence_id)
+            status_name = getattr(status, "value", None) or "missing_validation_status"
+            validity_status_counts[status_name] = validity_status_counts.get(status_name, 0) + 1
         valid_evidence_rate = valid_count / total_candidates if total_candidates else 0.0
 
         # Invalid evidence rejection rate
@@ -118,10 +137,15 @@ class RetrievalEvaluator:
                 "mrr": mrr,
                 "ndcg_at_10": ndcg_at_10,
                 "valid_count": valid_count,
+                "candidate_count": total_candidates,
                 "invalid_count": invalid_in_results,
+                "invalid_label_count": total_invalid,
+                "vendor_scope_correct_count": vendor_correct,
+                "validity_status_counts": validity_status_counts,
             }],
             valid_evidence_rate=valid_evidence_rate,
             invalid_evidence_rejection_rate=invalid_evidence_rejection_rate,
+            invalid_rejection_query_count=(1 if total_invalid > 0 else 0),
             vendor_scope_correctness=vendor_scope_correctness,
         )
 
@@ -140,6 +164,7 @@ class RetrievalEvaluator:
         all_ndcg = []
         all_valid_rate = []
         all_invalid_rej = []
+        invalid_rejection_query_count = 0
         all_vendor_scope = []
         per_query = []
 
@@ -156,7 +181,12 @@ class RetrievalEvaluator:
             all_mrr.append(result.mrr)
             all_ndcg.append(result.ndcg_at_10)
             all_valid_rate.append(result.valid_evidence_rate)
-            all_invalid_rej.append(result.invalid_evidence_rejection_rate)
+            # Rejection has no defined score when the query has no invalid
+            # evidence labels. Exclude those queries from this metric's
+            # denominator instead of treating the neutral default as success.
+            if result.per_query and result.per_query[0]["invalid_label_count"] > 0:
+                all_invalid_rej.append(result.invalid_evidence_rejection_rate)
+                invalid_rejection_query_count += 1
             all_vendor_scope.append(result.vendor_scope_correctness)
             per_query.extend(result.per_query)
 
@@ -169,6 +199,7 @@ class RetrievalEvaluator:
             per_query=per_query,
             valid_evidence_rate=sum(all_valid_rate) / len(all_valid_rate) if all_valid_rate else 0.0,
             invalid_evidence_rejection_rate=sum(all_invalid_rej) / len(all_invalid_rej) if all_invalid_rej else 0.0,
+            invalid_rejection_query_count=invalid_rejection_query_count,
             vendor_scope_correctness=sum(all_vendor_scope) / len(all_vendor_scope) if all_vendor_scope else 0.0,
         )
 

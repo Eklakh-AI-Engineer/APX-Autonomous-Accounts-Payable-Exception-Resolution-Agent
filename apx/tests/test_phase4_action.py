@@ -196,6 +196,18 @@ class TestActionExecutor:
         assert action_plan.status == ActionStatus.EXECUTED
         assert action_plan.execution_result is not None
 
+    def test_production_execution_fails_closed_without_durable_dispatch(self):
+        executor = ActionExecutor(config=ActionExecutorConfig(dry_run=False))
+        action_plan = create_test_action_plan(approval_status=ApprovalStatus.NOT_REQUIRED)
+        called = []
+        executor.register_adapter("AUTO_RESOLVE", lambda plan: called.append(plan))
+
+        result = executor.execute(action_plan)
+
+        assert result.success is False
+        assert "durable action ledger" in result.error_message
+        assert called == []
+
     def test_execute_unapproved_action_fails(self):
         """Test execution fails when action not approved."""
         executor = ActionExecutor()
@@ -509,8 +521,8 @@ class TestPhase4Pipeline:
         if action_plan.approval_status == ApprovalStatus.NOT_REQUIRED:
             assert action_plan.status == ActionStatus.APPROVED
 
-    def test_process_dev_mode_auto_approve(self):
-        """Test DEV mode auto-approves pending actions."""
+    def test_process_dev_mode_does_not_auto_approve(self):
+        """A DEV retrieval profile must not authorize a pending action."""
         pipeline = Phase4Pipeline()
         investigation_result = create_test_investigation(outcome="ESCALATE")
         exception_report = create_test_exception_report()
@@ -521,8 +533,7 @@ class TestPhase4Pipeline:
         )
         
         if action_plan.approval_status == ApprovalStatus.PENDING:
-            assert action_plan.approval_status == ApprovalStatus.APPROVED
-            assert action_plan.status == ActionStatus.APPROVED
+            assert action_plan.status == ActionStatus.PENDING
 
     def test_execute_action(self):
         """Test execute_action delegates to executor."""
@@ -548,8 +559,12 @@ class TestPhase4Pipeline:
         
         assert investigation_result is not None
         assert action_plan is not None
-        assert action_result is not None
-        assert action_result.success is True
+        if action_plan.approval_status == ApprovalStatus.PENDING:
+            assert action_plan.status == ActionStatus.PENDING
+            assert action_result is None
+        else:
+            assert action_result is not None
+            assert action_result.success is True
 
     def test_run_full_pipeline_with_custom_action_type(self):
         """Test full pipeline with custom action type."""
@@ -736,6 +751,9 @@ class TestPhase4PipelineIntegration:
         
         assert action_result is not None
         assert isinstance(action_result.success, bool)
+        if action_plan.approval_status == ApprovalStatus.PENDING:
+            assert action_result.success is False
+            assert "approval" in action_result.error_message.lower()
         
         print(f"Phase 1: Exception report - {len(exception_report.exceptions)} exceptions")
         print(f"Phase 2: Evidence set - {len(evidence_set.validated_evidence)} validated evidence")

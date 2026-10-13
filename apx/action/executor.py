@@ -95,6 +95,44 @@ class ActionExecutor:
         On failure after retries, attempts compensation and adds to dead letter queue.
         """
         from apx.action.models import ActionStatus
+
+        # This candidate has no durable dispatch claim/reconciliation adapter.
+        # Refuse real side effects until that ledger protocol is wired end to end.
+        if not self.config.dry_run:
+            return ActionResult(
+                action_id=action_plan.action_id,
+                success=False,
+                error_message="Production execution is disabled: durable action ledger and outcome reconciliation are not configured",
+                dry_run=False,
+            )
+
+        guardrail_requires_approval = bool(
+            action_plan.guardrail_decision
+            and getattr(action_plan.guardrail_decision, "requires_approval", False)
+        )
+        if guardrail_requires_approval and action_plan.approval_status != "APPROVED":
+            return ActionResult(
+                action_id=action_plan.action_id,
+                success=False,
+                error_message="Action requires a verified human approval",
+                dry_run=self.config.dry_run,
+            )
+        if action_plan.approval_status == "APPROVED":
+            if action_plan.guardrail_decision is None:
+                return ActionResult(
+                    action_id=action_plan.action_id,
+                    success=False,
+                    error_message="Guardrail policy cannot be verified",
+                    dry_run=self.config.dry_run,
+                )
+            verification_error = self._verify_persisted_approval(action_plan)
+            if verification_error:
+                return ActionResult(
+                    action_id=action_plan.action_id,
+                    success=False,
+                    error_message=verification_error,
+                    dry_run=self.config.dry_run,
+                )
         
         # Verify action plan is approved
         if action_plan.approval_status not in ["NOT_REQUIRED", "APPROVED"]:
@@ -192,6 +230,44 @@ class ActionExecutor:
                 dry_run=self.config.dry_run,
             )
     
+    def _verify_persisted_approval(self, action_plan: ActionPlan) -> str | None:
+        """Revalidate a durable approval binding immediately before dispatch."""
+        from datetime import datetime
+        from uuid import UUID
+        from apx.action.integrity import action_fingerprint
+        from apx.persistence.sqlite_repos import SQLiteApprovalRepository
+
+        metadata = action_plan.metadata or {}
+        case_id = metadata.get("case_id")
+        evidence_digest = metadata.get("evidence_digest")
+        policy_digest = metadata.get("policy_fingerprint")
+        if not case_id or not evidence_digest or not policy_digest:
+            return "Approval binding is incomplete"
+        try:
+            approval = SQLiteApprovalRepository().get_by_case(UUID(str(case_id)))
+        except Exception:
+            return "Approval record could not be verified"
+        if approval is None or approval.status.value != "APPROVED":
+            return "No approved durable authorization exists"
+        if approval.revoked_at is not None:
+            return "Approval has been revoked"
+        if approval.expires_at is None:
+            return "Approval expiry is missing"
+        if approval.expires_at <= datetime.utcnow():
+            return "Approval has expired"
+        if approval.resolved_by == approval.requested_by or not approval.resolved_by:
+            return "Approval identity or separation of duties is invalid"
+        if approval.action_type != getattr(action_plan.action_type, "value", action_plan.action_type):
+            return "Approval action type does not match"
+        expected = action_fingerprint(action_plan, evidence_digest, policy_digest)
+        if (
+            approval.action_fingerprint != expected
+            or approval.evidence_digest != evidence_digest
+            or approval.policy_fingerprint != policy_digest
+        ):
+            return "Approved action, evidence, or policy binding does not match"
+        return None
+
     def _attempt_compensation(self, action_plan: ActionPlan, error: Exception) -> dict[str, Any] | None:
         """Attempt to compensate/rollback a failed action."""
         compensation_adapter = self._compensation_adapters.get(action_plan.action_type.value)

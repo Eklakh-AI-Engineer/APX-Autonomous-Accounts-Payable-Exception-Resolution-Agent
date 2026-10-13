@@ -251,6 +251,7 @@ class BenchmarkOrchestrator:
 
         return self.retrieval_eval.evaluate_batch(evidence_sets, relevance_labels)
 
+
     def run_phase3_investigation(
         self,
         reports: List[ExceptionReport],
@@ -428,7 +429,7 @@ class BenchmarkOrchestrator:
 
         execution_time = time.time() - start_time
 
-        # Determine pass/fail
+        # Determine pass/fail using only the pre-existing configured gates.
         failure_reasons = []
         if detection.f1 < 0.85:
             failure_reasons.append(f"Detection F1 ({detection.f1:.2f}) below target 0.85")
@@ -508,11 +509,14 @@ class BenchmarkOrchestrator:
             f"  Escalation Accuracy: {result.decision.escalation_metrics.escalation_accuracy:.2%}",
             "",
             "Layer 5 - Action Evaluation:",
-            f"  Action Accuracy: {result.action.metrics.action_accuracy:.2%}",
-            f"  Guardrail Accuracy: {result.action.metrics.guardrail_accuracy:.2%}",
+            f"  Action Completion Accuracy: {result.action.metrics.action_accuracy:.2%} ({result.action.metrics.correct_actions}/{result.action.metrics.action_evaluation_cases} labeled cases; expected action type match AND execution success)",
+            f"  Action-Type Accuracy: {result.action.metrics.action_type_accuracy:.2%} ({result.action.metrics.action_type_correct}/{result.action.metrics.action_evaluation_cases} labeled cases; expected action type is mapped from expected decision)",
+            f"  Execution Success Rate: {result.action.metrics.execution_success_rate:.2%} ({result.action.metrics.execution_successes}/{result.action.metrics.total_actions} action attempts)",
+            f"  Guardrail Accuracy: {result.action.metrics.guardrail_accuracy:.2%} ({result.action.metrics.guardrail_correct}/{result.action.metrics.guardrail_decisions} cases; expected guardrail is inferred from action/risk mapping, not an independently adjudicated label)",
             f"  Unauthorized Action Rate: {result.action.metrics.unauthorized_action_rate:.2%}",
-            f"  Approval Accuracy: {result.action.metrics.approval_accuracy:.2%}",
-            f"  Blocked Accuracy: {result.action.metrics.blocked_accuracy:.2%}",
+            f"  Approval Requirement Accuracy: {result.action.metrics.approval_accuracy:.2%} ({result.action.metrics.approvals_correct}/{result.action.metrics.approval_evaluation_cases} labeled cases; expected requirement is inferred from the benchmark action/risk mapping)",
+            f"  Blocked Decision Precision: {result.action.metrics.blocked_precision:.2%} ({result.action.metrics.blocked_correct}/{result.action.metrics.blocked_predicted_positive} predicted BLOCK cases)",
+            f"  Blocked Decision Recall: {result.action.metrics.blocked_recall:.2%} ({result.action.metrics.blocked_correct}/{result.action.metrics.blocked_expected_positive} expected BLOCK cases)",
             "",
             "Layer 6 - Business Evaluation:",
             result.business.summary if result.business else "N/A",
@@ -526,6 +530,60 @@ class BenchmarkOrchestrator:
                 *[f"  - {r}" for r in result.failure_reasons],
                 "",
             ])
+
+        if result.retrieval and result.retrieval.per_query:
+            lines.extend([
+                "Per-query retrieval evidence validity (curated query denominators):",
+                f"  Queries: {result.retrieval.total_queries}; invalid-rejection query denominator: {result.retrieval.invalid_rejection_query_count}",
+            ])
+            for query in result.retrieval.per_query:
+                status_counts = query.get("validity_status_counts", {})
+                status_summary = ", ".join(
+                    f"{status}={count}" for status, count in sorted(status_counts.items())
+                ) or "no retrieved candidates"
+                lines.append(
+                    f"  {query['query_id']}: valid={query['valid_count']}/{query['candidate_count']} candidates; "
+                    f"invalid_labels={query['invalid_label_count']}; statuses={status_summary}"
+                )
+            lines.append("")
+
+        if result.action and result.action.per_case:
+            error_cases = [case for case in result.action.per_case if case.get("errors")]
+            execution_failures = [case for case in result.action.per_case if case.get("action_success") is False]
+            unlabeled_action_cases = [case for case in result.action.per_case if case.get("expected_action_type") is None]
+            lines.extend([
+                "Per-case action error analysis (synthetic structured-input invoices):",
+                f"  Labeled cases with one or more action/guardrail/approval errors: {sum(bool(case.get('errors')) and case.get('expected_action_type') is not None for case in result.action.per_case)} / {result.action.metrics.action_evaluation_cases}",
+                f"  Action execution failures (all attempts): {len(execution_failures)} / {result.action.metrics.total_actions}",
+                f"  Cases without expected action labels (not applicable to labeled quality metrics): {len(unlabeled_action_cases)}",
+            ])
+            for case in error_cases:
+                lines.append(
+                    "  " + str(case.get("invoice_id") or case.get("action_id"))
+                    + f": expected_action={case.get('expected_action_type')}; actual_action={case.get('action_type')}; "
+                    + f"expected_guardrail={case.get('expected_guardrail_decision')}; actual_guardrail={case.get('guardrail_decision')}; "
+                    + f"action_success={case.get('action_success')}; errors={','.join(case.get('errors', []))}"
+                )
+            lines.extend([
+                "  These are deterministic synthetic invoice outcomes, not document extraction results.",
+                "",
+            ])
+        if result.decision and result.decision.per_case:
+            decision_errors = [case for case in result.decision.per_case if case.get("errors")]
+            unlabeled_decisions = [case for case in result.decision.per_case if case.get("expected_outcome") is None]
+            lines.extend([
+                "Per-case decision error analysis:",
+                f"  Cases with one or more decision/risk/escalation errors: {len(decision_errors)} / {sum(case.get('expected_outcome') is not None or case.get('expected_risk') is not None for case in result.decision.per_case)} evaluable cases",
+                f"  Cases without supported expected-decision labels (not applicable): {len(unlabeled_decisions)}",
+            ])
+            for case in decision_errors:
+                lines.append(
+                    "  " + str(case.get("invoice_id"))
+                    + f": expected_decision={case.get('expected_decision')}; actual_outcome={case.get('actual_outcome')}; "
+                    + f"expected_risk={case.get('expected_risk')}; actual_risk={case.get('actual_risk')}; "
+                    + f"guardrail={case.get('guardrail_decision')}; errors={','.join(case.get('errors', []))}"
+                )
+            lines.append("")
 
         return "\n".join(lines)
 
