@@ -52,5 +52,5 @@ See [implementation gap matrix](IMPLEMENTATION_GAP_MATRIX.md), [benchmark gate](
 
 - Latest candidate `4e4a19cf70c5f6926e1c16a3f13318ce874eac08` passed CI #148 (`38285760881`): API 61 passed/1 skipped, focused modules 132 passed, full suite 430 passed/1 skipped, configured Ruff passed, deterministic benchmark completed.
 - Fresh result `benchmark_dev_20261012_174606.json`, artifact ID `11763272206`, archive SHA-256 `4058b39121755c76c30083a247319d04a5e00ef436322c663af7eaecdf2fca67`; test artifact `11763790597`, SHA-256 `f0de35b16f16e914ff3435d3f5a932db59008af733bc9e0d9943c0f46791642a`.
-- The benchmark evidence above is for source candidate `4e4a19c`; this documentation synchronization is separately submitted for CI verification.
+- The benchmark evidence above is for source candidate `4e4a19c`; the current documentation snapshot is independently CI-verified.
 - Release acceptance remains `BLOCKED`; preserve PR #4 as draft and unmerged, do not tag `v1.0.0`, and keep live financial dispatch disabled.

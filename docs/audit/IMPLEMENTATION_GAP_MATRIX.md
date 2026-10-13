@@ -39,5 +39,5 @@ The 252 unsuccessful action attempts are distinct from action-type mismatches an
 
 - Candidate `4e4a19cf70c5f6926e1c16a3f13318ce874eac08` passed CI #148 (`38285760881`): API 61/1 skipped, focused 132 passed, full suite 430/1 skipped, configured Ruff and deterministic benchmark passed.
 - Benchmark artifact `benchmark_dev_20261012_174606.json` (ID `11763272206`; archive SHA-256 `4058b39121755c76c30083a247319d04a5e00ef436322c663af7eaecdf2fca67`); test artifact ID `11763790597` (SHA-256 `f0de35b16f16e914ff3435d3f5a932db59008af733bc9e0d9943c0f46791642a`).
-- Benchmark source candidate `4e4a19cf70c5f6926e1c16a3f13318ce874eac08` was verified by CI #148 (`38285760881`). The documentation synchronization is a separate docs-only change and is submitted for CI verification.
+- Benchmark source candidate `4e4a19cf70c5f6926e1c16a3f13318ce874eac08` was verified by CI #148 (`38285760881`). The current documentation snapshot is separately CI-verified; its source-code behavior is unchanged.
 - Release acceptance remains `BLOCKED`; preserve PR #4 as draft and unmerged, do not tag `v1.0.0`, and keep live financial dispatch disabled.
